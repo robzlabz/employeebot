@@ -1,0 +1,212 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #000000;
+  --color-panel: #08080a;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo,
+    monospace;
+}
+
+html {
+  color-scheme: dark;
+  scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background-color: #000;
+  color: #ececf1;
+}
+
+::selection {
+  background-color: rgb(125 211 252 / 0.3);
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 2px solid #7dd3fc;
+  outline-offset: 2px;
+}
+
+/* Backdrop layers for the hero. */
+.eb-grid {
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.05) 1px, transparent 1px);
+  background-size: 64px 64px;
+  -webkit-mask-image: radial-gradient(
+    ellipse 75% 65% at 50% 0%,
+    #000 20%,
+    transparent 100%
+  );
+  mask-image: radial-gradient(
+    ellipse 75% 65% at 50% 0%,
+    #000 20%,
+    transparent 100%
+  );
+}
+
+.eb-spotlight {
+  background: radial-gradient(
+    55% 45% at 50% 38%,
+    rgb(125 211 252 / 0.12),
+    transparent 72%
+  );
+}
+
+/* ---------------------------------------------------------------- motion --
+   Every animation reads --dur / --delay so each bot can run out of phase.
+   Elements carry at most one animation class, so the shared custom
+   properties never collide. */
+
+@keyframes eb-bob {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -7px, 0);
+  }
+}
+
+@keyframes eb-blink {
+  0%,
+  90%,
+  100% {
+    transform: scaleY(1);
+  }
+  93%,
+  96% {
+    transform: scaleY(0.08);
+  }
+}
+
+@keyframes eb-glance {
+  0%,
+  30%,
+  100% {
+    transform: translateX(0);
+  }
+  40%,
+  52% {
+    transform: translateX(-1.7px);
+  }
+  64%,
+  76% {
+    transform: translateX(1.7px);
+  }
+}
+
+@keyframes eb-bubble {
+  0%,
+  4% {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0) scale(0.96);
+  }
+  12%,
+  46% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  58%,
+  100% {
+    opacity: 0;
+    transform: translate3d(0, -8px, 0) scale(0.98);
+  }
+}
+
+@keyframes eb-glow {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes eb-pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes eb-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.anim-bob {
+  animation: eb-bob var(--dur, 5.6s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+.anim-blink {
+  transform-box: view-box;
+  transform-origin: 60px 56px;
+  animation: eb-blink var(--dur, 6.4s) linear infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+.anim-glance {
+  animation: eb-glance var(--dur, 9s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+.anim-bubble {
+  animation: eb-bubble var(--dur, 12s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+.anim-glow {
+  animation: eb-glow 9s ease-in-out infinite;
+}
+
+.anim-pulse {
+  animation: eb-pulse 2.8s ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+.anim-rise {
+  animation: eb-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--delay, 0s);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .anim-bob,
+  .anim-blink,
+  .anim-glance,
+  .anim-bubble,
+  .anim-glow,
+  .anim-pulse {
+    animation: none;
+  }
+
+  .anim-bubble {
+    opacity: 1;
+  }
+
+  .anim-rise {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
