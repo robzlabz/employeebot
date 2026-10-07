@@ -1,50 +1,49 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import { SiteFooter } from "@/components/site-footer";
-import { SiteHeader } from "@/components/site-header";
+import { Figtree, Fredoka } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const figtree = Figtree({
+  variable: "--font-figtree",
   subsets: ["latin"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const fredoka = Fredoka({
+  variable: "--font-fredoka",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
   title: {
-    default: "Employee Bot — Bot yang mengerjakan pekerjaan manusia",
-    template: "%s · Employee Bot",
+    default: "Keluarga Bolu — asisten kerja kantor",
+    template: "%s · Keluarga Bolu",
   },
   description:
-    "Employee Bot memberi setiap bot komputer virtual, terminal, browser, dan memori jangka panjang dengan sesi persisten. Satu perusahaan, banyak bot, satu workspace bersama.",
+    "Enam asisten kecil yang kerja bareng untukmu: bikin invoice, balas WhatsApp, rekap pesanan, sampai merapikan file. Mereka siapkan semuanya, kamu tinggal cek dan setujui.",
   openGraph: {
-    title: "Employee Bot",
+    title: "Keluarga Bolu — asisten kerja kantor",
     description:
-      "Bot yang mengerjakan pekerjaan manusia. Komputer virtual, memori persisten, dan tim bot untuk satu perusahaan.",
-    siteName: "Employee Bot",
+      "Enam asisten kecil yang kerja bareng untukmu: bikin invoice, balas WhatsApp, rekap pesanan, sampai merapikan file.",
+    siteName: "Keluarga Bolu",
+    locale: "id_ID",
     type: "website",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#000000",
-  colorScheme: "dark",
+  themeColor: "#F5F6FB",
+  colorScheme: "light",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="id"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${figtree.variable} ${fredoka.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col bg-black">
-        <SiteHeader />
+      <body className="flex min-h-full flex-col bg-bolu-bg font-sans text-bolu-ink">
         {children}
-        <SiteFooter />
       </body>
     </html>
   );

@@ -1,5 +1,7 @@
-import type { CSSProperties } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
+import { SiteFooter } from "@/components/bolu/site-footer";
+import { SiteNav } from "@/components/bolu/site-nav";
 
 type Tier = {
   name: string;
@@ -13,112 +15,103 @@ type Tier = {
 
 const TIERS: Tier[] = [
   {
-    name: "Free",
+    name: "Gratis",
     price: "Rp 0",
     period: "/ bulan",
-    tagline: "Untuk mencoba Employee Bot.",
+    tagline: "Untuk mencoba satu anggota keluarga.",
     features: [
-      "1 perusahaan",
-      "1 bot + 1 virtual computer",
-      "Memori personal",
-      "Workspace dasar",
+      "1 anggota tim",
+      "Invoice dan balasan sebagai draf",
+      "Rekap pesanan mingguan",
+      "Riwayat 30 hari",
     ],
-    cta: { label: "Mulai", href: "/dashboard" },
+    cta: { label: "Coba gratis", href: "/dashboard" },
   },
   {
-    name: "Pro",
+    name: "Keluarga",
     price: "Segera",
     tagline: "Untuk bisnis yang sudah jalan.",
     features: [
-      "Banyak bot per perusahaan",
-      "Grup bot + shared workspace",
-      "Secrets & environment",
-      "Sesi persisten prioritas",
+      "Enam anggota tim lengkap",
+      "WhatsApp, email, dan spreadsheet",
+      "Jadwal kerja dan izin kirim otomatis",
+      "Arsip dokumen tanpa batas",
     ],
-    cta: { label: "Coming soon" },
+    cta: { label: "Segera hadir" },
     featured: true,
   },
   {
-    name: "Team",
+    name: "Rombongan",
     price: "Custom",
     tagline: "Untuk tim dan agensi.",
     features: [
-      "Bot sesuai kebutuhan",
-      "Akses tim & peran",
-      "Audit log aktivitas",
+      "Anggota tim sesuai kebutuhan",
+      "Akses tim dan peran",
+      "Catatan aktivitas lengkap",
       "Dukungan prioritas",
     ],
     cta: { label: "Hubungi kami", href: "/dashboard" },
   },
 ];
 
-export const metadata = {
-  title: "Pricing",
+export const metadata: Metadata = {
+  title: "Harga",
   description:
-    "Harga Employee Bot: mulai gratis, bayar lewat transfer bank Indonesia saat upgrade. Tanpa Stripe.",
+    "Harga Keluarga Bolu: mulai gratis, tambah anggota tim saat bisnismu siap. Bayar lewat transfer bank Indonesia.",
 };
 
 export default function PricingPage() {
   return (
-    <main className="flex-1">
-      <section className="relative isolate overflow-hidden">
-        <div aria-hidden="true" className="eb-grid pointer-events-none absolute inset-0" />
-        <div
-          aria-hidden="true"
-          className="eb-spotlight pointer-events-none absolute inset-0"
-        />
-
-        <div className="relative mx-auto w-full max-w-6xl px-5 py-20 sm:px-6 sm:py-24">
-          <div className="anim-rise mx-auto max-w-2xl text-center">
-            <h1 className="text-4xl font-medium tracking-tight text-white sm:text-5xl">
-              Pricing
+    <>
+      <SiteNav />
+      <main className="flex-1">
+        <div className="mx-auto w-full max-w-[1248px] px-6 py-20">
+          <div className="mx-auto max-w-[680px] text-center">
+            <h1 className="font-display text-[clamp(38px,5vw,56px)] font-bold leading-[1.05]">
+              Harga
             </h1>
-            <p className="mt-5 text-base leading-relaxed text-white/55 sm:text-lg">
-              Mulai gratis dengan satu bot. Upgrade saat tim kamu siap — bayar
-              dengan transfer bank Indonesia.
+            <p className="mt-5 text-[19px] text-bolu-muted">
+              Mulai gratis dengan satu anggota tim. Tambah anggota lain saat bisnismu
+              siap — bayar dengan transfer bank Indonesia.
             </p>
           </div>
 
-          <ul className="anim-rise mt-14 grid gap-4 lg:grid-cols-3">
+          <ul className="mt-14 grid list-none grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-[18px] p-0">
             {TIERS.map((tier) => (
               <li
                 key={tier.name}
-                className={`flex flex-col rounded-3xl border p-7 ${
-                  tier.featured
-                    ? "border-white/20 bg-white/[0.04]"
-                    : "border-white/[0.07] bg-white/[0.02]"
+                className={`flex flex-col rounded-[28px] border bg-white p-7 ${
+                  tier.featured ? "border-bolu-ink" : "border-bolu-border"
                 }`}
               >
                 <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-sm font-medium text-white">{tier.name}</h2>
+                  <h2 className="font-display text-[22px] font-semibold">{tier.name}</h2>
                   {tier.featured ? (
-                    <span className="rounded-full border border-white/15 px-2.5 py-1 text-[10px] uppercase tracking-wide text-white/60">
+                    <span className="rounded-full border border-bolu-border px-2.5 py-1 text-[10px] uppercase tracking-wide text-bolu-muted">
                       Segera
                     </span>
                   ) : null}
                 </div>
 
                 <p className="mt-6 flex items-baseline gap-1.5">
-                  <span className="text-3xl font-medium tracking-tight text-white">
-                    {tier.price}
-                  </span>
+                  <span className="font-display text-3xl font-bold">{tier.price}</span>
                   {tier.period ? (
-                    <span className="text-sm text-white/55">{tier.period}</span>
+                    <span className="text-sm text-bolu-muted">{tier.period}</span>
                   ) : null}
                 </p>
 
-                <p className="mt-3 text-sm text-white/50">{tier.tagline}</p>
+                <p className="mt-3 text-sm text-bolu-muted">{tier.tagline}</p>
 
-                <ul className="mt-7 flex-1 space-y-3 text-sm text-white/60">
+                <ul className="mt-7 flex-1 list-none space-y-3 p-0 text-[15px] text-bolu-body">
                   {tier.features.map((feature) => (
                     <li key={feature} className="flex gap-3">
                       <svg
                         viewBox="0 0 20 20"
                         aria-hidden="true"
-                        className="mt-0.5 size-4 shrink-0 text-white/45"
+                        className="mt-0.5 size-4 shrink-0 text-bolu-muted"
                         fill="none"
                         stroke="currentColor"
-                        strokeWidth="1.6"
+                        strokeWidth="1.8"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       >
@@ -133,10 +126,10 @@ export default function PricingPage() {
                   {tier.cta.href ? (
                     <Link
                       href={tier.cta.href}
-                      className={`block w-full rounded-full px-5 py-3 text-center text-sm font-medium transition-colors ${
+                      className={`block w-full rounded-full px-5 py-3 text-center font-semibold no-underline ${
                         tier.featured
-                          ? "bg-white text-black hover:bg-white/90"
-                          : "border border-white/15 text-white/80 hover:border-white/30 hover:text-white"
+                          ? "bg-bolu-accent text-white hover:text-white"
+                          : "border-2 border-bolu-ink text-bolu-ink hover:text-bolu-ink"
                       }`}
                     >
                       {tier.cta.label}
@@ -144,7 +137,7 @@ export default function PricingPage() {
                   ) : (
                     <span
                       aria-disabled="true"
-                      className="block w-full cursor-not-allowed rounded-full border border-white/10 px-5 py-3 text-center text-sm text-white/55"
+                      className="block w-full cursor-not-allowed rounded-full border border-bolu-border px-5 py-3 text-center font-semibold text-bolu-muted"
                     >
                       {tier.cta.label}
                     </span>
@@ -154,19 +147,17 @@ export default function PricingPage() {
             ))}
           </ul>
 
-          <div
-            className="anim-rise mx-auto mt-10 max-w-3xl rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6"
-            style={{ "--delay": "0.12s" } as CSSProperties}
-          >
-            <h2 className="text-sm font-medium text-white">Pembayaran lokal</h2>
-            <p className="mt-2 text-sm leading-relaxed text-white/50">
-              Tagihan dan checkout belum aktif — harga di halaman ini masih
-              placeholder. Nanti pembayaran dilakukan lewat transfer bank atau
-              virtual account Indonesia, bukan Stripe.
+          <div className="mx-auto mt-10 max-w-[760px] rounded-[28px] border border-bolu-border bg-white p-6">
+            <h2 className="font-display text-[20px] font-semibold">Pembayaran lokal</h2>
+            <p className="mt-2 text-bolu-muted">
+              Tagihan dan checkout belum aktif — harga di halaman ini masih placeholder.
+              Nanti pembayaran dilakukan lewat transfer bank atau virtual account
+              Indonesia, bukan Stripe.
             </p>
           </div>
         </div>
-      </section>
-    </main>
+      </main>
+      <SiteFooter />
+    </>
   );
 }

@@ -1,0 +1,107 @@
+
+Keluarga Bolu — asisten kerja kantor
+ 
+ 
+ 
+bolu
+Timnya
+Cara kerja
+Intip kerjanya
+Tanya jawab
+Coba gratis
+Kerjaan yang itu-itu lagi? Serahkan ke keluarga Bolu.
+Enam asisten kecil yang kerja bareng untukmu: bikin invoice, balas WhatsApp, rekap pesanan, sampai merapikan file. Mereka siapkan semuanya, kamu tinggal cek dan setujui.
+Coba gratis
+Lihat cara kerjanya
+Ruang kerja · semua sedang bekerja
+Hari ini, Rabu
+{{b.act}}
+{{b.name}}
+{{b.role}}
+Barusan selesai
+{{f.text}}
+{{f.when}}
+Kenalan dulu dengan timnya
+Masing-masing punya satu keahlian. Kalau satu tugas butuh banyak langkah, mereka saling oper tanpa perlu kamu suruh satu-satu.
+{{b.name}}
+{{b.role}}
+{{b.bio}}
+Satu pesanan, dioper dari tangan ke tangan
+Contoh alurnya: pelanggan pesan lewat WhatsApp, dan sampai bukti bayarnya tersimpan rapi, kamu cuma muncul sekali, yaitu saat menyetujui invoice.
+{{st.n}}
+Kamu
+{{st.title}}
+{{st.text}}
+Intip meja kerja mereka
+Pilih satu pekerjaan dan lihat siapa yang mengerjakan apa.
+{{t.label}}
+Invoice
+INV-0042 · jatuh tempo 14 hari
+Kepada
+[NAMA PELANGGAN]
+Barang
+Qty
+Jumlah
+Kaos polos hitam L
+10
+Rp 850.000
+Sablon 1 warna
+10
+Rp 250.000
+Ongkos kirim
+1
+Rp 24.000
+Total
+Rp 1.124.000
+Setujui &amp; kirim
+Ubah dulu
+Draf disiapkan Oren
+R
+Rina
+pelanggan
+Kak, pesanan atas nama Rina udah dikirim belum?
+Halo Kak Rina! Pesananmu sudah dikirim hari ini lewat [KURIR], nomor resinya [NO RESI]. Terima kasih sudah belanja ya.
+Siap kak, makasih. Kalau mau order lagi masih ready?
+Biru sedang mengetik
+Rekap pesanan minggu ini
+diperbarui Ijo barusan
+Tanggal
+Pelanggan
+Barang
+Total
+Status
+{{r.tgl}}
+{{r.nama}}
+{{r.barang}}
+{{r.total}}
+{{r.status}}
+Folder Unduhan → Arsip/2026/Oktober
+{{fl.from}}
+{{fl.to}}
+{{s.who}}
+{{s.text}}
+Bolu yang siapkan, kamu yang ketok palu
+Setujui sebelum terkirim
+Invoice, balasan, dan email masuk sebagai draf. Kamu bisa ubah, setujui, atau biarkan Bolu jalan sendiri untuk hal-hal yang sudah kamu percayakan.
+Atur jam kerja mereka
+Tentukan kapan Biru boleh membalas chat dan kapan Oren boleh menagih, supaya pelanggan tidak dihubungi tengah malam.
+Semua tercatat
+Setiap langkah punya catatan: siapa yang mengerjakan, kapan, dan datanya dari mana. Gampang dicek kalau ada yang janggal.
+Yang sering ditanyakan
+Apakah Bolu mengirim pesan tanpa izin saya?
+Secara bawaan tidak. Semua balasan dan invoice menunggu persetujuanmu dulu. Kamu bisa membuka izin kirim otomatis untuk jenis pesan tertentu, misalnya info jam buka.
+Aplikasi apa saja yang bisa disambungkan?
+[DAFTAR INTEGRASI, misalnya WhatsApp Business, Gmail, Google Sheets, Google Drive]
+Bisa pakai format invoice saya sendiri?
+Bisa. Unggah contoh invoice yang biasa kamu pakai, dan Oren akan mengikuti susunan, logo, serta nomor urutnya.
+Berapa biayanya?
+[INFO HARGA]
+Pulang lebih cepat, kerjaan tetap beres.
+Mulai dari satu pekerjaan dulu, misalnya invoice atau balas chat. Tambah anggota tim kapan saja.
+Coba gratis
+Jadwalkan demo
+© 2026 Bolu
+Privasi
+Syarat
+Kontak
+ 

@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  /* `standalone` keeps the production image slim: server.js + traced deps only. */
+  output: "standalone",
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {

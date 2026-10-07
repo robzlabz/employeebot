@@ -1,67 +1,55 @@
-import type { CSSProperties } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Bot } from "@/components/bot";
+import { BotSvg } from "@/components/bolu/bot-svg";
+import { SiteFooter } from "@/components/bolu/site-footer";
+import { SiteNav } from "@/components/bolu/site-nav";
+import { bot } from "@/lib/crew";
 
 export const metadata: Metadata = {
   title: "Dashboard",
-  description: "Dashboard Employee Bot — segera hadir.",
+  description: "Dashboard Keluarga Bolu — segera hadir.",
   robots: { index: false },
 };
 
 export default function DashboardPage() {
   return (
-    <main className="flex-1">
-      <section className="relative isolate overflow-hidden">
-        <div aria-hidden="true" className="eb-grid pointer-events-none absolute inset-0" />
-        <div
-          aria-hidden="true"
-          className="eb-spotlight pointer-events-none absolute inset-0"
-        />
+    <>
+      <SiteNav />
+      <main className="flex-1">
+        <div className="mx-auto flex w-full max-w-[720px] flex-col items-center px-6 py-24 text-center">
+          <BotSvg bot={bot("Lila")} className="bob size-28" />
 
-        <div className="relative mx-auto flex w-full max-w-3xl flex-col items-center px-5 py-24 text-center sm:px-6 sm:py-28">
-          <Bot accent="#7dd3fc" antenna mood="smile" className="w-24 sm:w-28" />
-
-          <span className="anim-rise mt-8 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 text-xs text-white/60">
-            <span className="anim-pulse size-1.5 rounded-full bg-amber-300" />
+          <span className="mt-8 inline-flex items-center gap-2 rounded-full border border-bolu-border bg-white px-3.5 py-1.5 text-sm text-bolu-muted">
+            <span aria-hidden="true" className="size-1.5 rounded-full bg-[#FFC21A]" />
             Dalam pengembangan
           </span>
 
-          <h1
-            className="anim-rise mt-6 text-3xl font-medium tracking-tight text-white sm:text-4xl"
-            style={{ "--delay": "0.08s" } as CSSProperties}
-          >
-            Dashboard coming soon
+          <h1 className="mt-6 font-display text-[clamp(32px,4.4vw,44px)] font-bold leading-[1.08]">
+            Ruang kerja sedang disiapkan
           </h1>
 
-          <p
-            className="anim-rise mt-5 max-w-xl text-sm leading-relaxed text-white/55 sm:text-base"
-            style={{ "--delay": "0.16s" } as CSSProperties}
-          >
-            Login, onboarding perusahaan, dan manajemen bot sedang dibangun. Setelah
-            rilis, di sini kamu bisa membuat company, menambah bot, dan mengatur
-            workspace bersama.
+          <p className="mt-5 max-w-[560px] text-bolu-muted">
+            Login, pendaftaran bisnis, dan pengaturan anggota tim sedang dibangun. Setelah
+            rilis, di sini kamu bisa mengatur pekerjaan tiap anggota keluarga Bolu.
           </p>
 
-          <div
-            className="anim-rise mt-9 flex w-full flex-col items-center gap-3 sm:w-auto sm:flex-row"
-            style={{ "--delay": "0.24s" } as CSSProperties}
-          >
+          <div className="mt-9 flex w-full flex-col items-center gap-3 sm:w-auto sm:flex-row">
             <Link
               href="/"
-              className="w-full rounded-full bg-white px-6 py-3 text-center text-sm font-medium text-black transition-colors hover:bg-white/90 sm:w-auto"
+              className="w-full rounded-full bg-bolu-ink px-6 py-3 text-center font-semibold text-white no-underline hover:text-white sm:w-auto"
             >
-              Kembali ke home
+              Kembali ke beranda
             </Link>
             <Link
               href="/pricing"
-              className="w-full rounded-full border border-white/15 px-6 py-3 text-center text-sm font-medium text-white/80 transition-colors hover:border-white/30 hover:text-white sm:w-auto"
+              className="w-full rounded-full border-2 border-bolu-ink px-6 py-3 text-center font-semibold text-bolu-ink no-underline hover:text-bolu-ink sm:w-auto"
             >
-              Lihat Pricing
+              Lihat harga
             </Link>
           </div>
         </div>
-      </section>
-    </main>
+      </main>
+      <SiteFooter />
+    </>
   );
 }
