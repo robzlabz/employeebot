@@ -1,0 +1,787 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Bolu — dasbor dan obrolan tim</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&amp;family=Figtree:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F5F6FB}
+a{color:#1B6FC2}a:hover{color:#0F4F8F}
+.bob{animation:bob 2.6s ease-in-out infinite;transform-origin:50% 100%}
+.blink{transform-box:fill-box;transform-origin:50% 50%;animation:blink 5s infinite}
+.pop{animation:pop .45s cubic-bezier(.2,.9,.3,1.3)}
+.pulse{animation:pulse 1.6s ease-in-out infinite}
+.dots span{display:inline-block;width:7px;height:7px;border-radius:50%;background:#5E5B70;margin-right:4px;animation:dot 1.2s infinite}
+.dots span:nth-child(2){animation-delay:.2s}.dots span:nth-child(3){animation-delay:.4s}
+@keyframes bob{0%,100%{transform:translateY(0) scale(1.03,.97)}50%{transform:translateY(-4px) scale(.98,1.02)}}
+@keyframes blink{0%,93%,100%{transform:scaleY(1)}95%{transform:scaleY(.08)}}
+@keyframes pop{0%{transform:translateY(8px);opacity:0}100%{transform:none;opacity:1}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes dot{0%,60%,100%{opacity:.25}30%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.bob,.blink,.pop,.pulse,.dots span{animation:none}}
+input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #1F7FD6;outline-offset:2px}
+</style>
+</helmet>
+<div style="background: #F5F6FB; color: #1E1B2E; font-family: 'Figtree', system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 16px; line-height: 1.5; min-height: 100vh; display: flex; flex-wrap: wrap; align-items: stretch">
+
+<!-- ============ SIDEBAR ============ -->
+<div style="flex: 1 1 270px; max-width: 100%; box-sizing: border-box; padding: 20px 14px; display: flex; flex-direction: column; gap: 14px; background: #FFFFFF; border-right: 1px solid #E3E5EF">
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: #1E1B2E; padding: 0 8px 6px">
+<div style="width: 36px; height: 36px"><svg viewBox="0 0 200 200" style="width: 100%; height: 100%; overflow: visible; display: block" aria-hidden="true">
+<sc-if value="{{logo.hasFeet}}" hint-placeholder-val="{{true}}"><path d="{{logo.feet}}" fill="{{logo.feetColor}}"></path></sc-if>
+<path d="{{logo.d}}" fill="{{logo.color}}" stroke="{{logo.color}}" stroke-width="{{logo.sw}}" stroke-linejoin="round"></path>
+<g transform="{{logo.face}}">
+<ellipse cx="-31" cy="9" rx="11" ry="6.5" fill="#FF5A86" opacity="0.3"></ellipse>
+<ellipse cx="31" cy="9" rx="11" ry="6.5" fill="#FF5A86" opacity="0.3"></ellipse>
+<sc-if value="{{logo.eyesOpen}}" hint-placeholder-val="{{true}}">
+<g class="blink" style="animation-delay: {{logo.delay}}">
+<ellipse cx="-17" cy="-8" rx="10.5" ry="11.5" fill="#FFFFFF"></ellipse>
+<ellipse cx="17" cy="-8" rx="10.5" ry="11.5" fill="#FFFFFF"></ellipse>
+<g transform="{{logo.look}}">
+<circle cx="-17" cy="-7" r="7" fill="#1E1B2E"></circle><circle cx="17" cy="-7" r="7" fill="#1E1B2E"></circle>
+<circle cx="-14.2" cy="-10.2" r="2.9" fill="#FFFFFF"></circle><circle cx="19.8" cy="-10.2" r="2.9" fill="#FFFFFF"></circle>
+<circle cx="-19.9" cy="-4.2" r="1.4" fill="#FFFFFF"></circle><circle cx="14.1" cy="-4.2" r="1.4" fill="#FFFFFF"></circle>
+</g></g>
+</sc-if>
+<sc-if value="{{logo.eyesClosed}}" hint-placeholder-val="{{false}}">
+<path d="M-26 -6 Q-17 1 -8 -6 M8 -6 Q17 1 26 -6" fill="none" stroke="#1E1B2E" stroke-width="4.5" stroke-linecap="round"></path>
+</sc-if>
+<path d="{{logo.mouth}}" fill="{{logo.mouthFill}}" stroke="#1E1B2E" stroke-width="{{logo.mouthSw}}" stroke-linecap="round" stroke-linejoin="round"></path>
+</g>
+</svg></div>
+<span style="font-family: 'Fredoka', 'Figtree', system-ui, sans-serif; font-weight: 700; font-size: 24px">bolu</span>
+</a>
+
+<button type="button" onClick="{{openDash}}" style="{{dashStyle}}">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="2"></rect></svg>
+<span style="flex: 1; text-align: left">Dasbor</span>
+<sc-if value="{{hasPending}}" hint-placeholder-val="{{true}}"><span style="background: #E2602B; color: #FFFFFF; font-size: 13px; font-weight: 700; border-radius: 999px; padding: 1px 8px">{{pendingCount}}</span></sc-if>
+</button>
+
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 10px 0"><span style="font-size: 14px; font-weight: 700; color: #5E5B70">Tim Bolu</span><span style="font-size: 13px; color: #5E5B70">{{activeLabel}}</span></div>
+<div style="display: flex; flex-wrap: wrap; gap: 4px">
+<sc-for list="{{side}}" as="b" hint-placeholder-count="6">
+<button type="button" onClick="{{b.pick}}" style="{{b.style}}">
+<div style="position: relative; width: 44px; height: 44px; flex: none">
+<div class="{{b.anim}}" style="width: 44px; height: 44px; opacity: {{b.opacity}}; animation-delay: {{b.delay}}"><svg viewBox="0 0 200 200" style="width: 100%; height: 100%; overflow: visible; display: block" aria-hidden="true">
+<sc-if value="{{b.hasFeet}}" hint-placeholder-val="{{true}}"><path d="{{b.feet}}" fill="{{b.feetColor}}"></path></sc-if>
+<path d="{{b.d}}" fill="{{b.color}}" stroke="{{b.color}}" stroke-width="{{b.sw}}" stroke-linejoin="round"></path>
+<g transform="{{b.face}}">
+<ellipse cx="-31" cy="9" rx="11" ry="6.5" fill="#FF5A86" opacity="0.3"></ellipse>
+<ellipse cx="31" cy="9" rx="11" ry="6.5" fill="#FF5A86" opacity="0.3"></ellipse>
+<sc-if value="{{b.eyesOpen}}" hint-placeholder-val="{{true}}">
+<g class="blink" style="animation-delay: {{b.delay}}">
+<ellipse cx="-17" cy="-8" rx="10.5" ry="11.5" fill="#FFFFFF"></ellipse>
+<ellipse cx="17" cy="-8" rx="10.5" ry="11.5" fill="#FFFFFF"></ellipse>
+<g transform="{{b.look}}">
+<circle cx="-17" cy="-7" r="7" fill="#1E1B2E"></circle><circle cx="17" cy="-7" r="7" fill="#1E1B2E"></circle>
+<circle cx="-14.2" cy="-10.2" r="2.9" fill="#FFFFFF"></circle><circle cx="19.8" cy="-10.2" r="2.9" fill="#FFFFFF"></circle>
+<circle cx="-19.9" cy="-4.2" r="1.4" fill="#FFFFFF"></circle><circle cx="14.1" cy="-4.2" r="1.4" fill="#FFFFFF"></circle>
+</g></g>
+</sc-if>
+<sc-if value="{{b.eyesClosed}}" hint-placeholder-val="{{false}}">
+<path d="M-26 -6 Q-17 1 -8 -6 M8 -6 Q17 1 26 -6" fill="none" stroke="#1E1B2E" stroke-width="4.5" stroke-linecap="round"></path>
+</sc-if>
+<path d="{{b.mouth}}" fill="{{b.mouthFill}}" stroke="#1E1B2E" stroke-width="{{b.mouthSw}}" stroke-linecap="round" stroke-linejoin="round"></path>
+</g>
+</svg></div>
+<span style="position: absolute; right: -1px; bottom: 1px; width: 11px; height: 11px; border-radius: 50%; border: 2px solid #FFFFFF; background: {{b.statusColor}}"></span>
+</div>
+<div style="flex: 1; min-width: 0; text-align: left; display: flex; flex-direction: column">
+<span style="font-family: 'Fredoka', 'Figtree', system-ui, sans-serif; font-weight: 600; font-size: 17px; line-height: 1.2">{{b.name}}</span>
+<span style="font-size: 13px; color: #5E5B70; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{b.line}}</span>
+</div>
+<sc-if value="{{b.hasUnread}}" hint-placeholder-val="{{false}}"><span style="background: {{b.color}}; color: #1E1B2E; font-size: 12px; font-weight: 800; border-radius: 999px; min-width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; padding: 0 6px; box-sizing: border-box">{{b.unread}}</span></sc-if>
+</button>
+</sc-for>
+</div>
+
+<button type="button" style="display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 14px; border-radius: 16px; border: 2px dashed #C9CDE0; background: transparent; color: #3E3B52; font: inherit; font-weight: 600; cursor: pointer">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Tambah anggota Bolu
+</button>
+<div style="flex: 1"></div>
+<div style="background: #1E1B2E; color: #FFFFFF; border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 6px">
+<div style="font-family: 'Fredoka', 'Figtree', system-ui, sans-serif; font-weight: 600; font-size: 17px">Paket Coba</div>
+<div style="font-size: 14px; opacity: 0.8">[SISA MASA COBA]</div>
+<a href="#" style="color: #FFFFFF; font-weight: 600; font-size: 14px">Lihat paket</a>
+</div>
+</div>
+
+<!-- ============ MAIN ============ -->
+<div style="flex: 999 1 640px; min-width: 0; box-sizing: border-box; display: flex; flex-direction: column">
+
+<!-- ===== DASBOR ===== -->
+<sc-if value="{{isDash}}" hint-placeholder-val="{{true}}">
+<div style="padding: 24px 28px 48px; display: flex; flex-direction: column; gap: 22px">
+<div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between">
+<div>
+<h1 style="font-family: 'Fredoka', 'Figtree', system-ui, sans-serif; font-weight: 700; font-size: 36px; line-height: 1.1; margin: 0">Selamat siang</h1>
+<div style="color: #5E5B70">Rabu, 7 Oktober · ini ringkasan kerja tim kecilmu</div>
+</div>
+<div style="display: flex; gap: 10px; align-items: center">
+<button type="button" aria-label="Notifikasi" style="width: 44px; height: 44px; border-radius: 50%; border: 1px solid #E3E5EF; background: #FFFFFF; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1E1B2E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2.2 2.2 0 0 0 4 0"></path></svg></button>
+<div style="width: 44px; height: 44px; border-radius: 50%; background: #FDE7DA; display: flex; align-items: center; justify-content: center; font-family: 'Fredoka', 'Figtree', system-ui, sans-serif; font-weight: 700">[A]</div>
+</div>
+</div>
+
+<div style="background: #1E1B2E; color: #FFFFFF; border-radius: 26px; padding: 18px 20px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center">
+<label for="suruh" style="font-family: 'Fredoka', 'Figtree', system-ui, sans-serif; font-weight: 600; font-size: 19px; flex: none">Suruh Bolu</label>
+<input id="suruh" type="text" value="{{dashMsg}}" onChange="{{onDashMsg}}" onKeyDown="{{onDashKey}}" placeholder="misalnya: tagih semua invoice yang telat" style="flex: 1 1 260px; min-width: 0; min-height: 46px; border-radius: 999px; border: 0; padding: 0 18px; font: inherit; color: #1E1B2E; background: #FFFFFF">
+<button type="button" onClick="{{sendDash}}" style="min-height: 46px; padding: 0 22px; border-radius: 999px; border: 0; background: {{accent}}; color: #FFFFFF; font: inherit; font-weight: 700; cursor: pointer">Kirim tugas</button>
+<div style="flex-basis: 100%; font-size: 14px; opacity: 0.75">Tugas otomatis diteruskan ke anggota yang paling cocok, dan obrolannya muncul di daftar kiri.</div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px">
+<sc-for list="{{stats}}" as="s" hint-placeholder-count="4">
+<div style="background: #FFFFFF; border: 1px solid #E3E5EF; border-radius: 26px; padding: 18px 20px; display: flex; flex-direction: column; gap: 4px">
+<div style="font-size: 15px; color: #5E5B70; font-weight: 500">{{s.label}}</div>
+<div style="font-family: 'Fredoka', 'Figtree', system-ui, sans-serif; font-weight: 700; font-size: 34px; line-height: 1.1">{{s.value}}</div>
+<div style="font-size: 14px; color: #5E5B70">{{s.note}}</div>
+</div>
+</sc-for>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start">
+<div style="background: #FFFFFF; border: 1px solid #E3E5EF; border-radius: 26px; flex: 999 1 420px; min-width: 0; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap"><h2 style="font-family: 'Fredoka', 'Figtree', system-ui, sans-serif; font-weight: 600; font-size: 22px; margin: 0">Menunggu persetujuanmu</h2><span style="font-size: 14px; color: #5E5B70">{{pendingLabel}}</span></div>
+<sc-if value="{{hasPending}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<sc-for list="{{pending}}" as="p" hint-placeholder-count="5">
+<div style="display: flex; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 18px; border: 1px solid #EEF0F6; flex-wrap: wrap">
+<div style="width: 44px; height: 44px; flex: none"><svg viewBox="0 0 200 200" style="width: 100%; height: 100%; overflow: visible; display: block" aria-hidden="true">
+<sc-if value="{{p.bot.hasFeet}}" hint-placeholder-val="{{true}}"><path d="{{p.bot.feet}}" fill="{{p.bot.feetColor}}"></path></sc-if>
+<path d="{{p.bot.d}}" fill="{{p.bot.color}}" stroke="{{p.bot.color}}" stroke-width="{{p.bot.sw}}" stroke-linejoin="round"></path>
+<g transform="{{p.bot.face}}">
+<ellipse cx="-31" cy="9" rx="11" ry="6.5" fill="#FF5A86" opacity="0.3"></ellipse>
+<ellipse cx="31" cy="9" rx="11" ry="6.5" fill="#FF5A86" opacity="0.3"></ellipse>
+<sc-if value="{{p.bot.eyesOpen}}" hint-placeholder-val="{{true}}">
+<g class="blink" style="animation-delay: {{p.bot.delay}}">
+<ellipse cx="-17" cy="-8" rx="10.5" ry="11.5" fill="#FFFFFF"></ellipse>
+<ellipse cx="17" cy="-8" rx="10.5" ry="11.5" fill="#FFFFFF"></ellipse>
+<g transform="{{p.bot.look}}">
+<circle cx="-17" cy="-7" r="7" fill="#1E1B2E"></circle><circle cx="17" cy="-7" r="7" fill="#1E1B2E"></circle>
+<circle cx="-14.2" cy="-10.2" r="2.9" fill="#FFFFFF"></circle><circle cx="19.8" cy="-10.2" r="2.9" fill="#FFFFFF"></circle>
+<circle cx="-19.9" cy="-4.2" r="1.4" fill="#FFFFFF"></circle><circle cx="14.1" cy="-4.2" r="1.4" fill="#FFFFFF"></circle>
+</g></g>
+</sc-if>
+<sc-if value="{{p.bot.eyesClosed}}" hint-placeholder-val="{{false}}">
+<path d="M-26 -6 Q-17 1 -8 -6 M8 -6 Q17 1 26 -6" fill="none" stroke="#1E1B2E" stroke-width="4.5" stroke-linecap="round"></path>
+</sc-if>
+<path d="{{p.bot.mouth}}" fill="{{p.bot.mouthFill}}" stroke="#1E1B2E" stroke-width="{{p.bot.mouthSw}}" stroke-linecap="round" stroke-linejoin="round"></path>
+</g>
+</svg></div>
+<div style="display: flex; flex-direction: column; min-width: 0; flex: 1 1 200px">
+<div style="font-size: 13px; font-weight: 600; color: #5E5B70">{{p.kind}} · dari {{p.botName}}</div>
+<div style="font-weight: 600">{{p.title}}</div>
+<div style="font-size: 14px; color: #5E5B70">{{p.meta}}</div>
+</div>
+<div style="display: flex; gap: 6px; flex: none">
+<button type="button" onClick="{{p.open}}" style="min-height: 40px; padding: 0 14px; border-radius: 999px; border: 2px solid #1E1B2E; background: #FFFFFF; color: #1E1B2E; font: inherit; font-weight: 600; font-size: 14px; cursor: pointer">Buka obrolan</button>
+<button type="button" onClick="{{p.approve}}" style="min-height: 40px; padding: 0 14px; border-radius: 999px; border: 0; background: #1E1B2E; color: #FFFFFF; font: inherit; font-weight: 700; font-size: 14px; cursor: pointer">Setujui</button>
+</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{noPending}}" hint-placeholder-val="{{false}}">
+<div class="pop" style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 30px 12px">
+<div class="bob" style="width: 90px; height: 90px"><svg viewBox="0 0 200 200" style="width: 100%; height: 100%; overflow: visible; display: block" aria-hidden="true">
+<sc-if value="{{happy.hasFeet}}" hint-placeholder-val="{{true}}"><path d="{{happy.feet}}" fill="{{happy.feetColor}}"></path></sc-if>
+<path d="{{happy.d}}" fill="{{happy.color}}" stroke="{{happy.color}}" stroke-width="{{happy.sw}}" stroke-linejoin="round"></path>
+<g transform="{{happy.face}}">
+<ellipse cx="-31" cy="9" rx="11" ry="6.5" fill="#FF5A86" opacity="0.3"></ellipse>
+<ellipse cx="31" cy="9" rx="11" ry="6.5" fill="#FF5A86" opacity="0.3"></ellipse>
+<sc-if value="{{happy.eyesOpen}}" hint-placeholder-val="{{true}}">
+<g class="blink" style="animation-delay: {{happy.delay}}">
+<ellipse cx="-17" cy="-8" rx="10.5" ry="11.5" fill="#FFFFFF"></ellipse>
+<ellipse cx="17" cy="-8" rx="10.5" ry="11.5" fill="#FFFFFF"></ellipse>
+<g transform="{{happy.look}}">
+<circle cx="-17" cy="-7" r="7" fill="#1E1B2E"></circle><circle cx="17" cy="-7" r="7" fill="#1E1B2E"></circle>
+<circle cx="-14.2" cy="-10.2" r="2.9" fill="#FFFFFF"></circle><circle cx="19.8" cy="-10.2" r="2.9" fill="#FFFFFF"></circle>
+<circle cx="-19.9" cy="-4.2" r="1.4" fill="#FFFFFF"></circle><circle cx="14.1" cy="-4.2" r="1.4" fill="#FFFFFF"></circle>
+</g></g>
+</sc-if>
+<sc-if value="{{happy.eyesClosed}}" hint-placeholder-val="{{false}}">
+<path d="M-26 -6 Q-17 1 -8 -6 M8 -6 Q17 1 26 -6" fill="none" stroke="#1E1B2E" stroke-width="4.5" stroke-linecap="round"></path>
+</sc-if>
+<path d="{{happy.mouth}}" fill="{{happy.mouthFill}}" stroke="#1E1B2E" stroke-width="{{happy.mouthSw}}" stroke-linecap="round" stroke-linejoin="round"></path>
+</g>
+</svg></div>
+<div style="font-family: 'Fredoka', 'Figtree', system-ui, sans-serif; font-weight: 600; font-size: 22px">Semua beres</div>
+<div style="color: #5E5B70; max-width: 320px">Tidak ada yang menunggu. Draf berikutnya muncul di sini begitu tim selesai menyiapkannya.</div>
+</div>
+</sc-if>
+</div>
+
+<div style="background: #FFFFFF; border: 1px solid #E3E5EF; border-radius: 26px; flex: 1 1 320px; min-width: 0; padding: 20px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; justify-content: space-between; align-items: center"><h2 style="font-family: 'Fredoka', 'Figtree', system-ui, sans-serif; font-weight: 600; font-size: 22px; margin: 0">Aktivitas</h2><span class="pulse" style="font-size: 13px; font-weight: 700; color: #1E7A43">LIVE</span></div>
+<div style="display: flex; flex-direction: column">
+<sc-for list="{{feed}}" as="f" hint-placeholder-count="7">
+<div class="{{f.cls}}" style="display: flex; gap: 12px; padding: 9px 0; border-bottom: 1px solid #EEF0F6">
+<div style="width: 32px; height: 32px; flex: none">
+<sc-if value="{{f.isYou}}" hint-placeholder-val="{{false}}"><div style="width: 32px; height: 32px; border-radius: 50%; background: #1E1B2E; display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></div></sc-if>
+<sc-if value="{{f.isBot}}" hint-placeholder-val="{{true}}"><svg viewBox="0 0 200 200" style="width: 100%; height: 100%; overflow: visible; display: block" aria-hidden="true">
+<sc-if value="{{f.bot.hasFeet}}" hint-placeholder-val="{{true}}"><path d="{{f.bot.feet}}" fill="{{f.bot.feetColor}}"></path></sc-if>
+<path d="{{f.bot.d}}" fill="{{f.bot.color}}" stroke="{{f.bot.color}}" stroke-width="{{f.bot.sw}}" stroke-linejoin="round"></path>
+<g transform="{{f.bot.face}}">
+<ellipse cx="-31" cy="9" rx="11" ry="6.5" fill="#FF5A86" opacity="0.3"></ellipse>
+<ellipse cx="31" cy="9" rx="11" ry="6.5" fill="#FF5A86" opacity="0.3"></ellipse>
+<sc-if value="{{f.bot.eyesOpen}}" hint-placeholder-val="{{true}}">
+<g class="blink" style="animation-delay: {{f.bot.delay}}">
+<ellipse cx="-17" cy="-8" rx="10.5" ry="11.5" fill="#FFFFFF"></ellipse>
+<ellipse cx="17" cy="-8" rx="10.5" ry="11.5" fill="#FFFFFF"></ellipse>
+<g transform="{{f.bot.look}}">
+<circle cx="-17" cy="-7" r="7" fill="#1E1B2E"></circle><circle cx="17" cy="-7" r="7" fill="#1E1B2E"></circle>
+<circle cx="-14.2" cy="-10.2" r="2.9" fill="#FFFFFF"></circle><circle cx="19.8" cy="-10.2" r="2.9" fill="#FFFFFF"></circle>
+<circle cx="-19.9" cy="-4.2" r="1.4" fill="#FFFFFF"></circle><circle cx="14.1" cy="-4.2" r="1.4" fill="#FFFFFF"></circle>
+</g></g>
+</sc-if>
+<sc-if value="{{f.bot.eyesClosed}}" hint-placeholder-val="{{false}}">
+<path d="M-26 -6 Q-17 1 -8 -6 M8 -6 Q17 1 26 -6" fill="none" stroke="#1E1B2E" stroke-width="4.5" stroke-linecap="round"></path>
+</sc-if>
+<path d="{{f.bot.mouth}}" fill="{{f.bot.mouthFill}}" stroke="#1E1B2E" stroke-width="{{f.bot.mouthSw}}" stroke-linecap="round" stroke-linejoin="round"></path>
+</g>
+</svg></sc-if>
+</div>
+<div style="flex: 1; min-width: 0; font-size: 15px; line-height: 1.4"><span style="font-weight: 600">{{f.who}}</span> {{f.text}}</div>
+<div style="font-size: 13px; color: #5E5B70; flex: none">{{f.time}}</div>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: stretch">
+<div style="background: #FFFFFF; border: 1px solid #E3E5EF; border-radius: 26px; flex: 999 1 460px; min-width: 0; padding: 20px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px"><h2 style="font-family: 'Fredoka', 'Figtree', system-ui, sans-serif; font-weight: 600; font-size: 22px; margin: 0">Tugas selesai minggu ini</h2><span style="font-size: 14px; color: #5E5B70">per hari, semua anggota</span></div>
+<div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 12px; align-items: end; height: 190px">
+<sc-for list="{{week}}" as="w" hint-placeholder-count="7">
+<div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; height: 100%">
+<div style="font-size: 13px; font-weight: 600">{{w.label}}</div>
+<div style="width: 100%; max-width: 46px; height: {{w.h}}; border-radius: 12px; background: {{w.bg}}"></div>
+<div style="font-size: 14px; color: #5E5B70; font-weight: {{w.weight}}">{{w.day}}</div>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="background: #FFFFFF; border: 1px solid #E3E5EF; border-radius: 26px; flex: 1 1 320px; min-width: 0; padding: 20px; display: flex; flex-direction: column; gap: 10px">
+<h2 style="font-family: 'Fredoka', 'Figtree', system-ui, sans-serif; font-weight: 600; font-size: 22px; margin: 0">Tagihan berjalan</h2>
+<sc-for list="{{bills}}" as="i" hint-placeholder-count="4">
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #EEF0F6; font-size: 15px">
+<div style="min-width: 0"><div style="font-weight: 600">{{i.name}}</div><div style="font-size: 13px; color: #5E5B70">{{i.no}}</div></div>
+<div style="text-align: right"><div style="font-weight: 600">{{i.amt}}</div><div style="font-size: 13px; font-weight: 700; color: {{i.color}}">{{i.status}}</div></div>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+</sc-if>
+
+<!-- ===== OBROLAN BOT ===== -->
+<sc-if value="{{isBot}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; min-height: 100vh">
+<!-- header -->
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 28px; border-bottom: 1px solid #E3E5EF; background: #FFFFFF">
+<div style="width: 40px; height: 40px; flex: none"><svg viewBox="0 0 200 200" style="width: 100%; height: 100%; overflow: visible; display: block" aria-hidden="true">
+<sc-if value="{{cur.hasFeet}}" hint-placeholder-val="{{true}}"><path d="{{cur.feet}}" fill="{{cur.feetColor}}"></path></sc-if>
+<path d="{{cur.d}}" fill="{{cur.color}}" stroke="{{cur.color}}" stroke-width="{{cur.sw}}" stroke-linejoin="round"></path>
+<g transform="{{cur.face}}">
+<ellipse cx="-31" cy="9" rx="11" ry="6.5" fill="#FF5A86" opacity="0.3"></ellipse>
+<ellipse cx="31" cy="9" rx="11" ry="6.5" fill="#FF5A86" opacity="0.3"></ellipse>
+<sc-if value="{{cur.eyesOpen}}" hint-placeholder-val="{{true}}">
+<g class="blink" style="animation-delay: {{cur.delay}}">
+<ellipse cx="-17" cy="-8" rx="10.5" ry="11.5" fill="#FFFFFF"></ellipse>
+<ellipse cx="17" cy="-8" rx="10.5" ry="11.5" fill="#FFFFFF"></ellipse>
+<g transform="{{cur.look}}">
+<circle cx="-17" cy="-7" r="7" fill="#1E1B2E"></circle><circle cx="17" cy="-7" r="7" fill="#1E1B2E"></circle>
+<circle cx="-14.2" cy="-10.2" r="2.9" fill="#FFFFFF"></circle><circle cx="19.8" cy="-10.2" r="2.9" fill="#FFFFFF"></circle>
+<circle cx="-19.9" cy="-4.2" r="1.4" fill="#FFFFFF"></circle><circle cx="14.1" cy="-4.2" r="1.4" fill="#FFFFFF"></circle>
+</g></g>
+</sc-if>
+<sc-if value="{{cur.eyesClosed}}" hint-placeholder-val="{{false}}">
+<path d="M-26 -6 Q-17 1 -8 -6 M8 -6 Q17 1 26 -6" fill="none" stroke="#1E1B2E" stroke-width="4.5" stroke-linecap="round"></path>
+</sc-if>
+<path d="{{cur.mouth}}" fill="{{cur.mouthFill}}" stroke="#1E1B2E" stroke-width="{{cur.mouthSw}}" stroke-linecap="round" stroke-linejoin="round"></path>
+</g>
+</svg></div>
+<div style="flex: 1 1 200px; min-width: 0">
+<div style="font-family: 'Fredoka', 'Figtree', system-ui, sans-serif; font-weight: 600; font-size: 20px; line-height: 1.2">{{cur.name}}</div>
+<div style="font-size: 14px; color: {{cur.statusColor}}; font-weight: 600">{{cur.status}}</div>
+</div>
+<span style="font-size: 14px; color: #5E5B70">{{cur.toggleText}}</span>
+<button type="button" role="switch" aria-checked="{{cur.onStr}}" aria-label="{{cur.toggleLabel}}" onClick="{{cur.toggle}}" style="flex: none; width: 52px; height: 30px; border-radius: 999px; border: 0; padding: 3px; cursor: pointer; background: {{cur.trackColor}}; display: flex; justify-content: {{cur.knobSide}}"><span style="width: 24px; height: 24px; border-radius: 50%; background: #FFFFFF; display: block"></span></button>
+</div>
+
+<div style="flex: 1; display: flex; flex-wrap: wrap; gap: 24px; padding: 24px 28px 32px; align-items: flex-start">
+<!-- chat column -->
+<div style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 18px; max-width: 780px; margin: 0 auto">
+<div style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 12px 0 8px">
+<div style="background: {{cur.tint}}; border-radius: 50%; width: 168px; height: 168px; display: flex; align-items: center; justify-content: center">
+<div class="{{cur.anim}}" style="width: 128px; height: 128px"><svg viewBox="0 0 200 200" style="width: 100%; height: 100%; overflow: visible; display: block" aria-hidden="true">
+<sc-if value="{{big.hasFeet}}" hint-placeholder-val="{{true}}"><path d="{{big.feet}}" fill="{{big.feetColor}}"></path></sc-if>
+<path d="{{big.d}}" fill="{{big.color}}" stroke="{{big.color}}" stroke-width="{{big.sw}}" stroke-linejoin="round"></path>
+<g transform="{{big.face}}">
+<ellipse cx="-31" cy="9" rx="11" ry="6.5" fill="#FF5A86" opacity="0.3"></ellipse>
+<ellipse cx="31" cy="9" rx="11" ry="6.5" fill="#FF5A86" opacity="0.3"></ellipse>
+<sc-if value="{{big.eyesOpen}}" hint-placeholder-val="{{true}}">
+<g class="blink" style="animation-delay: {{big.delay}}">
+<ellipse cx="-17" cy="-8" rx="10.5" ry="11.5" fill="#FFFFFF"></ellipse>
+<ellipse cx="17" cy="-8" rx="10.5" ry="11.5" fill="#FFFFFF"></ellipse>
+<g transform="{{big.look}}">
+<circle cx="-17" cy="-7" r="7" fill="#1E1B2E"></circle><circle cx="17" cy="-7" r="7" fill="#1E1B2E"></circle>
+<circle cx="-14.2" cy="-10.2" r="2.9" fill="#FFFFFF"></circle><circle cx="19.8" cy="-10.2" r="2.9" fill="#FFFFFF"></circle>
+<circle cx="-19.9" cy="-4.2" r="1.4" fill="#FFFFFF"></circle><circle cx="14.1" cy="-4.2" r="1.4" fill="#FFFFFF"></circle>
+</g></g>
+</sc-if>
+<sc-if value="{{big.eyesClosed}}" hint-placeholder-val="{{false}}">
+<path d="M-26 -6 Q-17 1 -8 -6 M8 -6 Q17 1 26 -6" fill="none" stroke="#1E1B2E" stroke-width="4.5" stroke-linecap="round"></path>
+</sc-if>
+<path d="{{big.mouth}}" fill="{{big.mouthFill}}" stroke="#1E1B2E" stroke-width="{{big.mouthSw}}" stroke-linecap="round" stroke-linejoin="round"></path>
+</g>
+</svg></div>
+</div>
+<div style="font-family: 'Fredoka', 'Figtree', system-ui, sans-serif; font-weight: 700; font-size: 32px; line-height: 1.1">{{cur.name}}</div>
+<div style="color: #5E5B70; max-width: 460px">{{cur.bio}}</div>
+<div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 6px">
+<sc-for list="{{chips}}" as="c" hint-placeholder-count="3">
+<button type="button" onClick="{{c.pick}}" style="min-height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid #D5D8E6; background: #FFFFFF; color: #1E1B2E; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">{{c.label}}</button>
+</sc-for>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 14px">
+<sc-for list="{{thread}}" as="m" hint-placeholder-count="3">
+<div class="{{m.cls}}">
+<sc-if value="{{m.mine}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; justify-content: flex-end"><div style="background: #1E1B2E; color: #FFFFFF; border-radius: 20px 20px 6px 20px; padding: 11px 16px; max-width: 78%; font-size: 15px">{{m.text}}</div></div>
+</sc-if>
+<sc-if value="{{m.theirs}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; gap: 10px; align-items: flex-start">
+<div style="width: 34px; height: 34px; flex: none; margin-top: 2px"><svg viewBox="0 0 200 200" style="width: 100%; height: 100%; overflow: visible; display: block" aria-hidden="true">
+<sc-if value="{{cur.hasFeet}}" hint-placeholder-val="{{true}}"><path d="{{cur.feet}}" fill="{{cur.feetColor}}"></path></sc-if>
+<path d="{{cur.d}}" fill="{{cur.color}}" stroke="{{cur.color}}" stroke-width="{{cur.sw}}" stroke-linejoin="round"></path>
+<g transform="{{cur.face}}">
+<ellipse cx="-31" cy="9" rx="11" ry="6.5" fill="#FF5A86" opacity="0.3"></ellipse>
+<ellipse cx="31" cy="9" rx="11" ry="6.5" fill="#FF5A86" opacity="0.3"></ellipse>
+<sc-if value="{{cur.eyesOpen}}" hint-placeholder-val="{{true}}">
+<g class="blink" style="animation-delay: {{cur.delay}}">
+<ellipse cx="-17" cy="-8" rx="10.5" ry="11.5" fill="#FFFFFF"></ellipse>
+<ellipse cx="17" cy="-8" rx="10.5" ry="11.5" fill="#FFFFFF"></ellipse>
+<g transform="{{cur.look}}">
+<circle cx="-17" cy="-7" r="7" fill="#1E1B2E"></circle><circle cx="17" cy="-7" r="7" fill="#1E1B2E"></circle>
+<circle cx="-14.2" cy="-10.2" r="2.9" fill="#FFFFFF"></circle><circle cx="19.8" cy="-10.2" r="2.9" fill="#FFFFFF"></circle>
+<circle cx="-19.9" cy="-4.2" r="1.4" fill="#FFFFFF"></circle><circle cx="14.1" cy="-4.2" r="1.4" fill="#FFFFFF"></circle>
+</g></g>
+</sc-if>
+<sc-if value="{{cur.eyesClosed}}" hint-placeholder-val="{{false}}">
+<path d="M-26 -6 Q-17 1 -8 -6 M8 -6 Q17 1 26 -6" fill="none" stroke="#1E1B2E" stroke-width="4.5" stroke-linecap="round"></path>
+</sc-if>
+<path d="{{cur.mouth}}" fill="{{cur.mouthFill}}" stroke="#1E1B2E" stroke-width="{{cur.mouthSw}}" stroke-linecap="round" stroke-linejoin="round"></path>
+</g>
+</svg></div>
+<div style="display: flex; flex-direction: column; gap: 10px; flex: 1; min-width: 0; max-width: 560px">
+<div style="background: {{cur.tint}}; border-radius: 6px 20px 20px 20px; padding: 11px 16px; font-size: 15px; align-self: flex-start">{{m.text}}</div>
+<sc-if value="{{m.hasDraft}}" hint-placeholder-val="{{false}}"><div style="background: #FFFFFF; border: 1px solid #E3E5EF; border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap"><span style="font-size: 13px; font-weight: 700; color: #5E5B70">{{m.card.kind}}</span><span style="font-family: 'Fredoka', 'Figtree', system-ui, sans-serif; font-weight: 600; font-size: 17px">{{m.card.title}}</span></div>
+<div style="display: flex; flex-direction: column">
+<sc-for list="{{m.card.fields}}" as="f" hint-placeholder-count="3">
+<div style="display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-top: 1px solid #EEF0F6; font-size: 14px"><span style="color: #5E5B70">{{f.k}}</span><span style="font-weight: 600; text-align: right">{{f.v}}</span></div>
+</sc-for>
+</div>
+<div style="background: {{m.card.tint}}; border-radius: 14px; padding: 12px 14px; font-size: 15px; white-space: pre-line">{{m.card.draft}}</div>
+<sc-if value="{{m.card.isPending}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" onClick="{{m.card.approve}}" style="flex: 1 1 140px; min-height: 44px; border-radius: 999px; border: 0; background: #1E1B2E; color: #FFFFFF; font: inherit; font-weight: 700; cursor: pointer">{{m.card.cta}}</button>
+<button type="button" onClick="{{m.card.reject}}" style="flex: 1 1 120px; min-height: 44px; border-radius: 999px; border: 2px solid #1E1B2E; background: #FFFFFF; color: #1E1B2E; font: inherit; font-weight: 600; cursor: pointer">Minta diubah</button>
+</div>
+</sc-if>
+<sc-if value="{{m.card.isDone}}" hint-placeholder-val="{{false}}">
+<div style="display: inline-flex; align-self: flex-start; align-items: center; gap: 8px; background: {{m.card.doneBg}}; color: #FFFFFF; border-radius: 999px; padding: 6px 14px 6px 8px; font-size: 14px; font-weight: 700"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>{{m.card.doneLabel}}</div>
+</sc-if>
+</div></sc-if>
+</div>
+</div>
+</sc-if>
+</div>
+</sc-for>
+<sc-if value="{{isTyping}}" hint-placeholder-val="{{false}}">
+<div class="pop" style="display: flex; gap: 10px; align-items: center">
+<div style="width: 34px; height: 34px; flex: none"><svg viewBox="0 0 200 200" style="width: 100%; height: 100%; overflow: visible; display: block" aria-hidden="true">
+<sc-if value="{{cur.hasFeet}}" hint-placeholder-val="{{true}}"><path d="{{cur.feet}}" fill="{{cur.feetColor}}"></path></sc-if>
+<path d="{{cur.d}}" fill="{{cur.color}}" stroke="{{cur.color}}" stroke-width="{{cur.sw}}" stroke-linejoin="round"></path>
+<g transform="{{cur.face}}">
+<ellipse cx="-31" cy="9" rx="11" ry="6.5" fill="#FF5A86" opacity="0.3"></ellipse>
+<ellipse cx="31" cy="9" rx="11" ry="6.5" fill="#FF5A86" opacity="0.3"></ellipse>
+<sc-if value="{{cur.eyesOpen}}" hint-placeholder-val="{{true}}">
+<g class="blink" style="animation-delay: {{cur.delay}}">
+<ellipse cx="-17" cy="-8" rx="10.5" ry="11.5" fill="#FFFFFF"></ellipse>
+<ellipse cx="17" cy="-8" rx="10.5" ry="11.5" fill="#FFFFFF"></ellipse>
+<g transform="{{cur.look}}">
+<circle cx="-17" cy="-7" r="7" fill="#1E1B2E"></circle><circle cx="17" cy="-7" r="7" fill="#1E1B2E"></circle>
+<circle cx="-14.2" cy="-10.2" r="2.9" fill="#FFFFFF"></circle><circle cx="19.8" cy="-10.2" r="2.9" fill="#FFFFFF"></circle>
+<circle cx="-19.9" cy="-4.2" r="1.4" fill="#FFFFFF"></circle><circle cx="14.1" cy="-4.2" r="1.4" fill="#FFFFFF"></circle>
+</g></g>
+</sc-if>
+<sc-if value="{{cur.eyesClosed}}" hint-placeholder-val="{{false}}">
+<path d="M-26 -6 Q-17 1 -8 -6 M8 -6 Q17 1 26 -6" fill="none" stroke="#1E1B2E" stroke-width="4.5" stroke-linecap="round"></path>
+</sc-if>
+<path d="{{cur.mouth}}" fill="{{cur.mouthFill}}" stroke="#1E1B2E" stroke-width="{{cur.mouthSw}}" stroke-linecap="round" stroke-linejoin="round"></path>
+</g>
+</svg></div>
+<div style="background: {{cur.tint}}; border-radius: 6px 20px 20px 20px; padding: 14px 16px"><span class="dots"><span></span><span></span><span></span></span></div>
+</div>
+</sc-if>
+</div>
+
+<div style="display: flex; gap: 8px; align-items: center; background: #FFFFFF; border: 1px solid #D5D8E6; border-radius: 28px; padding: 6px 6px 6px 20px; margin-top: 4px">
+<label for="pesan" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Pesan untuk {{cur.name}}</label>
+<input id="pesan" type="text" value="{{chatMsg}}" onChange="{{onChatMsg}}" onKeyDown="{{onChatKey}}" placeholder="{{placeholder}}" style="flex: 1; min-width: 0; min-height: 46px; border: 0; outline: none; font: inherit; background: transparent; color: #1E1B2E">
+<button type="button" aria-label="Kirim pesan" onClick="{{sendChat}}" style="width: 46px; height: 46px; flex: none; border-radius: 50%; border: 0; background: {{accent}}; display: flex; align-items: center; justify-content: center; cursor: pointer">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5.5 11.5L12 5l6.5 6.5"></path></svg>
+</button>
+</div>
+</div>
+
+<!-- right rail -->
+<div style="flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+<div style="background: #FFFFFF; border: 1px solid #E3E5EF; border-radius: 26px; padding: 18px; display: flex; flex-direction: column; gap: 10px">
+<div style="font-family: 'Fredoka', 'Figtree', system-ui, sans-serif; font-weight: 600; font-size: 18px">Hari ini</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+<div style="background: #F5F6FB; border-radius: 14px; padding: 10px 12px"><div style="font-family: 'Fredoka', 'Figtree', system-ui, sans-serif; font-weight: 700; font-size: 26px">{{cur.doneToday}}</div><div style="font-size: 13px; color: #5E5B70">tugas selesai</div></div>
+<div style="background: #F5F6FB; border-radius: 14px; padding: 10px 12px"><div style="font-family: 'Fredoka', 'Figtree', system-ui, sans-serif; font-weight: 700; font-size: 26px">{{cur.pendingN}}</div><div style="font-size: 13px; color: #5E5B70">menunggu kamu</div></div>
+</div>
+</div>
+<div style="background: #FFFFFF; border: 1px solid #E3E5EF; border-radius: 26px; padding: 18px; display: flex; flex-direction: column; gap: 10px">
+<div style="font-family: 'Fredoka', 'Figtree', system-ui, sans-serif; font-weight: 600; font-size: 18px">Yang dikerjakan {{cur.name}}</div>
+<sc-for list="{{cur.skills}}" as="k" hint-placeholder-count="3">
+<div style="display: flex; gap: 10px; align-items: flex-start; font-size: 15px"><span style="width: 8px; height: 8px; border-radius: 50%; background: {{cur.color}}; margin-top: 8px; flex: none"></span><span>{{k}}</span></div>
+</sc-for>
+</div>
+<div style="background: #FFFFFF; border: 1px solid #E3E5EF; border-radius: 26px; padding: 18px; display: flex; flex-direction: column; gap: 8px">
+<div style="font-family: 'Fredoka', 'Figtree', system-ui, sans-serif; font-weight: 600; font-size: 18px">Kerja bareng</div>
+<div style="font-size: 15px; color: #5E5B70">{{cur.team}}</div>
+<div style="display: flex; gap: 4px; margin-top: 4px">
+<sc-for list="{{cur.mates}}" as="t" hint-placeholder-count="2">
+<button type="button" onClick="{{t.pick}}" aria-label="Buka obrolan {{t.name}}" style="width: 44px; height: 44px; padding: 0; border: 0; background: transparent; cursor: pointer"><svg viewBox="0 0 200 200" style="width: 100%; height: 100%; overflow: visible; display: block" aria-hidden="true">
+<sc-if value="{{t.hasFeet}}" hint-placeholder-val="{{true}}"><path d="{{t.feet}}" fill="{{t.feetColor}}"></path></sc-if>
+<path d="{{t.d}}" fill="{{t.color}}" stroke="{{t.color}}" stroke-width="{{t.sw}}" stroke-linejoin="round"></path>
+<g transform="{{t.face}}">
+<ellipse cx="-31" cy="9" rx="11" ry="6.5" fill="#FF5A86" opacity="0.3"></ellipse>
+<ellipse cx="31" cy="9" rx="11" ry="6.5" fill="#FF5A86" opacity="0.3"></ellipse>
+<sc-if value="{{t.eyesOpen}}" hint-placeholder-val="{{true}}">
+<g class="blink" style="animation-delay: {{t.delay}}">
+<ellipse cx="-17" cy="-8" rx="10.5" ry="11.5" fill="#FFFFFF"></ellipse>
+<ellipse cx="17" cy="-8" rx="10.5" ry="11.5" fill="#FFFFFF"></ellipse>
+<g transform="{{t.look}}">
+<circle cx="-17" cy="-7" r="7" fill="#1E1B2E"></circle><circle cx="17" cy="-7" r="7" fill="#1E1B2E"></circle>
+<circle cx="-14.2" cy="-10.2" r="2.9" fill="#FFFFFF"></circle><circle cx="19.8" cy="-10.2" r="2.9" fill="#FFFFFF"></circle>
+<circle cx="-19.9" cy="-4.2" r="1.4" fill="#FFFFFF"></circle><circle cx="14.1" cy="-4.2" r="1.4" fill="#FFFFFF"></circle>
+</g></g>
+</sc-if>
+<sc-if value="{{t.eyesClosed}}" hint-placeholder-val="{{false}}">
+<path d="M-26 -6 Q-17 1 -8 -6 M8 -6 Q17 1 26 -6" fill="none" stroke="#1E1B2E" stroke-width="4.5" stroke-linecap="round"></path>
+</sc-if>
+<path d="{{t.mouth}}" fill="{{t.mouthFill}}" stroke="#1E1B2E" stroke-width="{{t.mouthSw}}" stroke-linecap="round" stroke-linejoin="round"></path>
+</g>
+</svg></button>
+</sc-for>
+</div>
+</div>
+</div>
+</div>
+</div>
+</sc-if>
+</div>
+
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+<div class="pop" role="status" style="position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #1E1B2E; color: #FFFFFF; border-radius: 999px; padding: 10px 20px 10px 10px; display: flex; align-items: center; gap: 10px; font-weight: 600; z-index: 10; max-width: calc(100% - 32px); box-sizing: border-box">
+<div style="width: 34px; height: 34px; flex: none"><svg viewBox="0 0 200 200" style="width: 100%; height: 100%; overflow: visible; display: block" aria-hidden="true">
+<sc-if value="{{toastBot.hasFeet}}" hint-placeholder-val="{{true}}"><path d="{{toastBot.feet}}" fill="{{toastBot.feetColor}}"></path></sc-if>
+<path d="{{toastBot.d}}" fill="{{toastBot.color}}" stroke="{{toastBot.color}}" stroke-width="{{toastBot.sw}}" stroke-linejoin="round"></path>
+<g transform="{{toastBot.face}}">
+<ellipse cx="-31" cy="9" rx="11" ry="6.5" fill="#FF5A86" opacity="0.3"></ellipse>
+<ellipse cx="31" cy="9" rx="11" ry="6.5" fill="#FF5A86" opacity="0.3"></ellipse>
+<sc-if value="{{toastBot.eyesOpen}}" hint-placeholder-val="{{true}}">
+<g class="blink" style="animation-delay: {{toastBot.delay}}">
+<ellipse cx="-17" cy="-8" rx="10.5" ry="11.5" fill="#FFFFFF"></ellipse>
+<ellipse cx="17" cy="-8" rx="10.5" ry="11.5" fill="#FFFFFF"></ellipse>
+<g transform="{{toastBot.look}}">
+<circle cx="-17" cy="-7" r="7" fill="#1E1B2E"></circle><circle cx="17" cy="-7" r="7" fill="#1E1B2E"></circle>
+<circle cx="-14.2" cy="-10.2" r="2.9" fill="#FFFFFF"></circle><circle cx="19.8" cy="-10.2" r="2.9" fill="#FFFFFF"></circle>
+<circle cx="-19.9" cy="-4.2" r="1.4" fill="#FFFFFF"></circle><circle cx="14.1" cy="-4.2" r="1.4" fill="#FFFFFF"></circle>
+</g></g>
+</sc-if>
+<sc-if value="{{toastBot.eyesClosed}}" hint-placeholder-val="{{false}}">
+<path d="M-26 -6 Q-17 1 -8 -6 M8 -6 Q17 1 26 -6" fill="none" stroke="#1E1B2E" stroke-width="4.5" stroke-linecap="round"></path>
+</sc-if>
+<path d="{{toastBot.mouth}}" fill="{{toastBot.mouthFill}}" stroke="#1E1B2E" stroke-width="{{toastBot.mouthSw}}" stroke-linecap="round" stroke-linejoin="round"></path>
+</g>
+</svg></div><span>{{toast}}</span>
+</div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#1F7FD6","options":["#1F7FD6","#E2602B","#7A4FC0","#23915A"],"section":"Tampilan"},"startOn":{"editor":"enum","options":["Dasbor","Oren","Biru","Lila","Ijo","Pinky","Kunyit"],"default":"Dasbor","section":"Tampilan"},"$preview":{"width":1440,"height":1900}}'>
+var SH = {
+  kacang:{d:'M60 50 C100 30 160 40 165 90 C170 140 140 170 95 168 C50 166 28 140 32 100 C34 75 40 60 60 50 Z',sw:4,face:'translate(100 107) scale(1.1)',foot:168},
+  hantu:{d:'M90 30 C130 26 150 60 146 100 C143 126 154 142 162 156 Q172 174 152 174 C130 174 112 168 100 160 C70 168 52 140 52 104 C52 60 60 34 90 30 Z',sw:6,face:'translate(98 89) scale(1)',foot:0},
+  gumpal:{d:'M50 52 C80 36 130 38 158 52 C176 70 172 130 160 152 C140 172 70 174 46 154 C30 130 30 72 50 52 Z',sw:4,face:'translate(100 103) scale(1.15)',foot:166},
+  awan:{d:'M50 162 Q20 162 22 132 Q24 106 50 102 Q50 64 88 60 Q112 36 140 58 Q176 60 172 100 Q190 114 182 140 Q176 164 150 162 Z',sw:4,face:'translate(102 119) scale(1.05)',foot:162},
+  tetes:{d:'M88 42 Q100 22 112 42 Q150 92 160 120 Q166 172 100 172 Q34 172 40 120 Q50 92 88 42 Z',sw:6,face:'translate(100 129) scale(1.05)',foot:172},
+  mochi:{d:'M28 142 Q24 72 100 68 Q176 72 172 142 Q172 172 100 172 Q28 172 28 142 Z',sw:4,face:'translate(100 127) scale(1.1)',foot:172}
+};
+var MO = {
+  open:{d:'M-12 9 Q0 11 12 9 Q10 26 0 26 Q-10 26 -12 9 Z',fill:'#1E1B2E',sw:0},
+  smile:{d:'M-9 12 Q0 20 9 12',fill:'none',sw:4.5},
+  focus:{d:'M-7 16 Q0 13 7 16',fill:'none',sw:4.5},
+  w:{d:'M-9 13 Q-4.5 19 0 13 Q4.5 19 9 13',fill:'none',sw:4},
+  sleep:{d:'M-6 17 L6 17',fill:'none',sw:4},
+  o:{d:'M-5 18 a5 6 0 1 0 10 0 a5 6 0 1 0 -10 0 Z',fill:'#1E1B2E',sw:0}
+};
+function mk(o){
+  var s = SH[o.shape], m = MO[o.mouth || 'smile'], y = s.foot - 3;
+  return Object.assign({}, o, {
+    d:s.d, sw:s.sw, face:s.face, hasFeet:!!s.foot,
+    feet:'M70 '+y+' a12 8 0 1 0 24 0 a12 8 0 1 0 -24 0 Z M106 '+y+' a12 8 0 1 0 24 0 a12 8 0 1 0 -24 0 Z',
+    mouth:m.d, mouthFill:m.fill, mouthSw:m.sw, look:o.look || 'translate(0 0)', delay:o.delay || '0s',
+    eyesOpen: !o.closed, eyesClosed: !!o.closed
+  });
+}
+var BASE = [
+  {name:'Oren', role:'Tukang invoice', shape:'kacang', color:'#F28C4E', feetColor:'#D9692A', tint:'#FDE7DA', mouth:'focus', look:'translate(2 3)', delay:'0s',
+    kw:['invoice','tagih','bayar','faktur'], done:14,
+    bio:'Aku bikin invoice dari data pesanan, mengirimnya ke pelanggan, dan menagih dengan sopan kalau sudah lewat jatuh tempo.',
+    skills:['Membuat invoice dari rekap pesanan','Menghitung diskon, pajak, dan ongkir','Mengirim pengingat bayar bertahap'],
+    chips:['Buat invoice untuk pesanan hari ini','Tagih invoice yang telat','Kirim ringkasan tagihan'],
+    after:'Drafnya kutaruh di sini dan di Dasbor begitu siap.', team:'Mengambil data pesanan dari Ijo, lalu minta Lila memasang pengingat jatuh tempo.', mates:['Ijo','Lila'],
+    acts:['membuat invoice INV-0044','menghitung pajak pesanan','menyiapkan pengingat bayar']},
+  {name:'Biru', role:'Penjaga WhatsApp', shape:'hantu', color:'#2E9BEF', feetColor:'#1B7AC7', tint:'#DCEEFD', mouth:'open', look:'translate(-2 2)', delay:'.4s',
+    kw:['wa','whatsapp','chat','balas','pelanggan','resi'], done:23,
+    bio:'Aku menjawab chat pelanggan yang itu-itu saja: ongkir, status pesanan, stok, jam buka, dan nomor rekening.',
+    skills:['Membalas pertanyaan umum dengan gaya bahasamu','Mengirim nomor resi dan status pesanan','Menahan chat sensitif untuk kamu baca dulu'],
+    chips:['Balas semua chat soal ongkir','Kirim resi ke pelanggan hari ini','Pakai gaya bahasa lebih santai'],
+    after:'Balasan yang sensitif tetap kutahan dulu untuk kamu cek.', team:'Mengecek status pesanan ke Ijo dan meneruskan permintaan invoice ke Oren.', mates:['Ijo','Oren'],
+    acts:['membalas chat soal ongkir','mengirim nomor resi','membalas pertanyaan stok']},
+  {name:'Lila', role:'Pengatur jadwal', shape:'gumpal', color:'#A77DC9', feetColor:'#8459AB', tint:'#EEE5F7', mouth:'smile', look:'translate(3 -2)', delay:'.8s',
+    kw:['jadwal','rapat','meeting','ingat','kalender'], done:6,
+    bio:'Aku mencarikan waktu rapat yang pas untuk semua orang, mengirim undangan, dan mengingatkan tenggat.',
+    skills:['Mencari slot kosong semua peserta','Mengirim undangan kalender','Mengingatkan tenggat sehari sebelumnya'],
+    chips:['Jadwalkan rapat tim minggu depan','Ingatkan tenggat pajak','Kosongkan Jumat sore'],
+    after:'Kalau ada jadwal yang bentrok, aku kabari dulu sebelum mengirim undangan.', team:'Memasang pengingat jatuh tempo untuk invoice buatan Oren.', mates:['Oren','Kunyit'],
+    acts:['mencari slot rapat','mengirim undangan kalender','memasang pengingat tenggat']},
+  {name:'Ijo', role:'Juru rekap', shape:'mochi', color:'#4DBB72', feetColor:'#34985A', tint:'#DFF3E6', mouth:'focus', look:'translate(0 3)', delay:'1.2s',
+    kw:['rekap','data','stok','laporan','spreadsheet','excel'], done:11,
+    bio:'Aku memindahkan data pesanan ke spreadsheet, memperbarui stok, dan menyusun rekap mingguan.',
+    skills:['Mencatat pesanan dari chat dan email','Memperbarui sisa stok','Menyusun rekap mingguan'],
+    chips:['Rekap penjualan minggu ini','Cek stok yang hampir habis','Ekspor data ke Excel'],
+    after:'Hasilnya kusimpan di sheet Rekap Oktober.', team:'Menerima pesanan dari Biru dan mengoper datanya ke Oren untuk dibuatkan invoice.', mates:['Biru','Oren'],
+    acts:['mencatat pesanan baru','memperbarui sisa stok','menyusun rekap mingguan']},
+  {name:'Pinky', role:'Pengarsip', shape:'awan', color:'#F59ABF', feetColor:'#E07199', tint:'#FDE6EF', mouth:'w', look:'translate(-3 1)', delay:'1.6s',
+    kw:['file','arsip','folder','dokumen','scan','kontrak'], done:14,
+    bio:'Aku merapikan nama file, memilah dokumen, dan menyimpan bukti transfer ke folder yang benar.',
+    skills:['Memberi nama file yang jelas','Memindahkan dokumen ke folder yang tepat','Mencari dokumen lama dengan cepat'],
+    chips:['Rapikan folder Unduhan','Arsipkan bukti transfer bulan ini','Cari kontrak Toko Sari'],
+    after:'Nama file lamanya tetap kucatat, jadi gampang dicari lagi.', team:'Menyimpan invoice Oren dan menautkan bukti bayar ke rekap Ijo.', mates:['Oren','Ijo'],
+    acts:['mengganti nama scan_0201.pdf','memindahkan kuitansi','menyimpan bukti transfer']},
+  {name:'Kunyit', role:'Pembalas email', shape:'tetes', color:'#FFC21A', feetColor:'#DDA000', tint:'#FFF3CC', mouth:'smile', look:'translate(2 1)', delay:'2s',
+    kw:['email','surel','inbox','surat'], done:9,
+    bio:'Aku memilah inbox, menandai email penting, dan menyiapkan draf balasan untuk kamu periksa.',
+    skills:['Memilah email masuk','Menandai yang butuh keputusanmu','Menyiapkan draf balasan'],
+    chips:['Pilah email yang belum dibaca','Ringkas email minggu ini','Siapkan balasan untuk CV Maju'],
+    after:'Email yang butuh keputusanmu kutandai merah.', team:'Mengirim invoice Oren lewat email dan meneruskan undangan rapat dari Lila.', mates:['Oren','Lila'],
+    acts:['memilah email masuk','menandai email penting','menyiapkan draf balasan']}
+];
+var BY = {}, RAW = {}; BASE.forEach(function(b){ BY[b.name] = mk(b); RAW[b.name] = b; });
+var DRAFTS = {
+  a1:{bot:'Oren', kind:'Invoice', title:'INV-0043 untuk Toko Sari', meta:'Rp 1.124.000 · jatuh tempo 21 Okt', cta:'Setujui & kirim',
+    fields:[['Pelanggan','Toko Sari'],['Isi','Kaos polos ×10, sablon, ongkir'],['Total','Rp 1.124.000']],
+    draft:'Halo Bu Sari, terlampir invoice INV-0043 untuk pesanan kaos 10 pcs.\nMohon dibayar sebelum 21 Oktober. Terima kasih!'},
+  a5:{bot:'Oren', kind:'Penagihan', title:'Pengingat bayar untuk Bagas', meta:'Telat 3 hari · Rp 189.000', cta:'Setujui & kirim',
+    fields:[['Invoice','INV-0039'],['Jatuh tempo','4 Oktober'],['Pengingat ke-','1']],
+    draft:'Halo Kak Bagas, sekadar mengingatkan invoice INV-0039 sebesar Rp 189.000 sudah lewat jatuh tempo. Kalau sudah transfer, abaikan pesan ini ya.'},
+  a2:{bot:'Biru', kind:'Balasan WhatsApp', title:'Balasan untuk Dimas', meta:'Tanya status pesanan hoodie', cta:'Setujui & kirim',
+    fields:[['Pesan masuk','“Kak, hoodie saya kapan dikirim?”'],['Data dari','Rekap Ijo · belum lunas']],
+    draft:'Halo Kak Dimas! Hoodie abu ukuran M sudah siap. Pesanan dikirim setelah pembayaran Rp 245.000 kami terima ya, Kak.'},
+  a4:{bot:'Lila', kind:'Undangan rapat', title:'Rapat evaluasi Kamis 10.00', meta:'4 peserta · 45 menit', cta:'Setujui & undang',
+    fields:[['Waktu','Kamis, 8 Okt · 10.00–10.45'],['Peserta','4 orang, semua kosong'],['Tempat','Daring']],
+    draft:'Agenda: evaluasi penjualan minggu ini dan rencana stok November.'},
+  a3:{bot:'Kunyit', kind:'Email', title:'Balasan ke CV Maju', meta:'Permintaan penawaran harga', cta:'Setujui & kirim',
+    fields:[['Dari','pengadaan@[DOMAIN]'],['Lampiran','Daftar harga Oktober.pdf']],
+    draft:'Selamat siang, terima kasih atas minatnya. Kami lampirkan daftar harga terbaru.\nUntuk pesanan di atas 50 pcs, harga khusus bisa kita diskusikan.'}
+};
+var ORDER = ['a1','a2','a3','a4','a5'];
+var SEED = {
+  Oren:[['bot','Selamat pagi! Ada 3 pesanan baru dari rekap Ijo, invoice-nya sudah kusiapkan.'],['bot','INV-0043 untuk Toko Sari siap dikirim:','a1'],['bot','Bagas sudah telat bayar 3 hari. Boleh kukirim pengingat pertama?','a5']],
+  Biru:[['you','Biru, kalau ada yang tanya ongkir pakai tarif terbaru ya'],['bot','Siap, tarif terbaru sudah kucatat. Pagi ini 6 chat sudah kubalas.'],['bot','Dimas tanya soal hoodie-nya. Ini draf balasanku:','a2']],
+  Lila:[['bot','Semua peserta kosong di Kamis jam 10. Mau kukirim undangannya?','a4']],
+  Ijo:[['bot','Rekap minggu ini sudah kuperbarui: 18 pesanan, 2 belum lunas. Datanya sudah kuoper ke Oren untuk penagihan.']],
+  Pinky:[['bot','Folder Unduhan sudah rapi! 14 file kuganti namanya dan kupindahkan ke Arsip/2026/Oktober.']],
+  Kunyit:[['bot','Ada 30 email masuk sejak kemarin, 3 kutandai penting.'],['bot','Ini draf balasan untuk CV Maju:','a3']]
+};
+var INIT_FEED = [['Ijo','memperbarui rekap pesanan','10.28'],['Pinky','merapikan 14 file di Unduhan','10.24'],['Biru','membalas 6 chat pelanggan','10.19'],['Oren','mengirim INV-0042 ke Rina','10.12'],['Kunyit','menandai 3 email penting','10.05']];
+
+class Component extends DCLogic {
+  componentDidMount() {
+    var self = this, threads = {};
+    Object.keys(SEED).forEach(function(n){ threads[n] = SEED[n].map(function(m){ return {from:m[0], text:m[1], draft:m[2] || null, cls:''}; }); });
+    var start = this.props.startOn && this.props.startOn !== 'Dasbor' ? this.props.startOn : 'dash';
+    var unread = {Oren:2, Biru:1, Lila:1, Kunyit:1}; if (start !== 'dash') unread[start] = 0;
+    this.setState({ tick:0, view:start, threads:threads, verdict:{}, paused:{}, typing:{}, unread:unread, chatMsg:'', dashMsg:'',
+      feed: INIT_FEED.map(function(f){ return {who:f[0], text:f[1], time:f[2], cls:''}; }), toast:'', toastBot:'Oren' });
+    this.timer = setInterval(function(){
+      var s = self.state, t = (s.tick || 0) + 1, upd = { tick:t };
+      var active = BASE.filter(function(b){ return !(s.paused || {})[b.name]; });
+      if (t % 2 === 0 && active.length) {
+        var b = active[(t / 2) % active.length];
+        upd.feed = self.pushFeed(s.feed, { who:b.name, text:'selesai ' + b.acts[(t / 2) % b.acts.length] }, t);
+      }
+      self.setState(upd);
+    }, 3000);
+  }
+  componentWillUnmount() { clearInterval(this.timer); clearTimeout(this.tt); (this.rt || []).forEach(clearTimeout); }
+  clock(t) { var m = 30 + Math.floor((t || 0) / 2); return '10.' + (m < 60 ? m : 59); }
+  pushFeed(feed, item, t) { item.time = this.clock(t === undefined ? this.state.tick : t); item.cls = 'pop'; return [item].concat(feed || []).slice(0, 7); }
+  say(text, bot) { var self = this; clearTimeout(this.tt); this.setState({ toast:text, toastBot:bot || 'Oren' }); this.tt = setTimeout(function(){ self.setState({ toast:'' }); }, 2600); }
+  addMsg(threads, name, msg) { var t = Object.assign({}, threads); msg.cls = 'pop'; t[name] = (t[name] || []).concat([msg]); return t; }
+  open(name) { var u = Object.assign({}, this.state.unread); u[name] = 0; this.setState({ view:name, unread:u, chatMsg:'' }); }
+  decide(id, ok) {
+    var s = this.state, d = DRAFTS[id], v = Object.assign({}, s.verdict); v[id] = ok ? 'ok' : 'rev';
+    var reply = ok ? 'Beres, sudah kukirim. Terima kasih!' : 'Oke, aku revisi dulu ya. Nanti kukabari lagi di sini.';
+    this.setState({ verdict:v, threads:this.addMsg(s.threads, d.bot, {from:'bot', text:reply}),
+      feed: this.pushFeed(s.feed, ok ? {who:'Kamu', you:true, text:'menyetujui ' + d.title} : {who:'Kamu', you:true, text:'minta ' + d.bot + ' merevisi ' + d.title}) });
+    this.say(ok ? d.title + ' terkirim' : d.bot + ' akan merevisi drafnya', d.bot);
+  }
+  talk(name, txt) {
+    var self = this, s = this.state; txt = (txt || '').trim(); if (!txt) return;
+    var ty = Object.assign({}, s.typing); ty[name] = true;
+    this.setState({ threads:this.addMsg(s.threads, name, {from:'you', text:txt}), typing:ty, chatMsg:'' });
+    this.rt = (this.rt || []).concat([setTimeout(function(){
+      var s2 = self.state, b = RAW[name], asleep = (s2.paused || {})[name];
+      var reply = asleep ? 'Zzz… aku lagi istirahat. Nyalakan aku dulu dari tombol di atas, ya.' : 'Oke! Aku kerjakan: “' + txt + '”. ' + b.after;
+      var ty2 = Object.assign({}, s2.typing); ty2[name] = false;
+      var u = Object.assign({}, s2.unread); if (s2.view !== name) u[name] = (u[name] || 0) + 1;
+      var upd = { threads:self.addMsg(s2.threads, name, {from:'bot', text:reply}), typing:ty2, unread:u };
+      if (!asleep) upd.feed = self.pushFeed(s2.feed, {who:name, text:'menerima tugas: “' + txt + '”'});
+      self.setState(upd);
+    }, 1400)]);
+  }
+  route(txt) {
+    var low = (txt || '').toLowerCase();
+    return (BASE.filter(function(b){ return b.kw.some(function(k){ return low.indexOf(k) >= 0; }); })[0] || BASE[2]).name;
+  }
+  renderVals() {
+    var self = this, s = this.state || {}, tick = s.tick || 0, view = s.view || 'dash';
+    var verdict = s.verdict || {}, paused = s.paused || {}, typing = s.typing || {}, unread = s.unread || {}, threads = s.threads || {};
+    var accent = this.props.accent || '#1F7FD6';
+    var pend = ORDER.filter(function(id){ return !verdict[id]; });
+    var waitBy = {}; pend.forEach(function(id){ waitBy[DRAFTS[id].bot] = (waitBy[DRAFTS[id].bot] || 0) + 1; });
+    function face(b){
+      var n = b.name;
+      if (paused[n]) return mk(Object.assign({}, RAW[n], {closed:true, mouth:'sleep'}));
+      if (typing[n]) return mk(Object.assign({}, RAW[n], {mouth:'focus', look:'translate(3 -3)'}));
+      return BY[n];
+    }
+    function status(n){
+      if (paused[n]) return ['Istirahat', '#8B88A0', 'Istirahat'];
+      if (typing[n]) return ['Sedang mengetik…', '#1E7A43', 'Sedang mengetik…'];
+      if (waitBy[n]) return ['Menunggu kamu', '#E2602B', 'Draf menunggu kamu'];
+      var b = RAW[n]; return ['Sedang bekerja', '#2FA65A', 'Sedang ' + b.acts[(Math.floor(tick / 2) + BASE.indexOf(b)) % b.acts.length]];
+    }
+    var cardFor = function(id){
+      var d = DRAFTS[id], v = verdict[id], b = RAW[d.bot];
+      return { kind:d.kind, title:d.title, draft:d.draft, cta:d.cta, tint:b.tint,
+        fields:d.fields.map(function(f){ return {k:f[0], v:f[1]}; }),
+        isPending:!v, isDone:!!v, doneLabel: v === 'ok' ? 'Disetujui dan terkirim' : 'Diminta revisi', doneBg: v === 'ok' ? '#1E7A43' : '#B4421F',
+        approve:function(){ self.decide(id, true); }, reject:function(){ self.decide(id, false); } };
+    };
+    var out = {
+      accent: accent, logo: BY.Oren,
+      happy: mk(Object.assign({}, RAW.Pinky, {mouth:'open'})),
+      isDash: view === 'dash', isBot: view !== 'dash',
+      openDash: function(){ self.setState({ view:'dash' }); },
+      dashStyle: 'display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 0 14px; border-radius: 16px; font: inherit; font-weight: 700; font-size: 17px; cursor: pointer; ' + (view === 'dash' ? 'background: #1E1B2E; color: #FFFFFF; border: 0' : 'background: #F5F6FB; color: #1E1B2E; border: 0'),
+      hasPending: pend.length > 0, noPending: pend.length === 0, pendingCount: pend.length, pendingLabel: pend.length ? pend.length + ' draf' : '',
+      activeLabel: (BASE.length - Object.keys(paused).filter(function(k){ return paused[k]; }).length) + ' aktif',
+      side: BASE.map(function(b){
+        var st = status(b.name), on = view === b.name, n = unread[b.name] || 0;
+        return Object.assign({}, face(b), {
+          line: st[2], statusColor: st[1], hasUnread: n > 0 && !on, unread: n,
+          anim: paused[b.name] ? '' : 'bob', opacity: paused[b.name] ? 0.5 : 1,
+          pick: function(){ self.open(b.name); },
+          style: 'display: flex; align-items: center; gap: 12px; flex: 1 1 220px; min-width: 0; min-height: 60px; padding: 8px 10px; border-radius: 16px; font: inherit; color: #1E1B2E; cursor: pointer; ' + (on ? 'background: ' + b.tint + '; border: 2px solid #1E1B2E' : 'background: transparent; border: 2px solid transparent')
+        });
+      }),
+      toast: s.toast || '', hasToast: !!s.toast, toastBot: BY[s.toastBot] || BY.Oren
+    };
+    if (view === 'dash') {
+      var doneCount = Object.keys(verdict).length;
+      Object.assign(out, {
+        dashMsg: s.dashMsg || '',
+        onDashMsg: function(e){ self.setState({ dashMsg:e.target.value }); },
+        onDashKey: function(e){ if (e.key === 'Enter') out.sendDash(); },
+        sendDash: function(){ var t = (self.state.dashMsg || '').trim(); if (!t) return; var who = self.route(t); self.setState({ dashMsg:'' }); self.talk(who, t); self.say('Diteruskan ke ' + who, who); },
+        stats: [
+          {label:'Menunggu persetujuanmu', value:String(pend.length), note: pend.length ? 'paling lama 12 menit' : 'semua sudah beres'},
+          {label:'Tugas selesai hari ini', value:String(77 + Math.floor(tick / 2) + doneCount), note:'oleh 6 anggota tim'},
+          {label:'Perkiraan waktu dihemat', value:'± 3 jam', note:'dibanding dikerjakan manual'},
+          {label:'Tagihan belum dibayar', value:'Rp 2,4 jt', note:'5 invoice · 2 lewat tempo'}
+        ],
+        pending: pend.map(function(id){ var d = DRAFTS[id];
+          return { bot:BY[d.bot], botName:d.bot, kind:d.kind, title:d.title, meta:d.meta,
+            open:function(){ self.open(d.bot); }, approve:function(){ self.decide(id, true); } }; }),
+        feed: (s.feed || []).map(function(f){ return { who:f.who, text:f.text, time:f.time, cls:f.cls, isYou:!!f.you, isBot:!f.you, bot:BY[f.who] || BY.Oren }; }),
+        week: [['Sen',86],['Sel',94],['Rab',77 + Math.floor(tick / 2) + doneCount],['Kam',0],['Jum',0],['Sab',0],['Min',0]].map(function(w, i){
+          return { day:w[0], label:w[1] ? String(w[1]) : '', h: w[1] ? Math.round(Math.min(1, w[1] / 110) * 140) + 'px' : '6px',
+            bg: i === 2 ? accent : w[1] ? '#1E1B2E' : '#E3E5EF', weight: i === 2 ? 700 : 500 }; }),
+        bills: [
+          {name:'Toko Sari', no:'INV-0043', amt:'Rp 1.124.000', status: verdict.a1 === 'ok' ? 'Terkirim' : 'Menunggu kamu', color: verdict.a1 === 'ok' ? '#5E5B70' : '#B4421F'},
+          {name:'Dimas', no:'INV-0041', amt:'Rp 245.000', status:'Belum dibayar', color:'#5E5B70'},
+          {name:'Bagas', no:'INV-0039', amt:'Rp 189.000', status:'Lewat 3 hari', color:'#B4421F'},
+          {name:'Rina', no:'INV-0042', amt:'Rp 170.000', status:'Lunas', color:'#1E7A43'}
+        ]
+      });
+    } else {
+      var b = RAW[view], off = !!paused[view], st = status(view), big;
+      if (off) big = mk(Object.assign({}, b, {closed:true, mouth:'sleep'}));
+      else if (typing[view]) big = mk(Object.assign({}, b, {mouth:'focus', look:'translate(4 -4)'}));
+      else big = mk(Object.assign({}, b, {mouth:'open', look:'translate(0 2)'}));
+      Object.assign(out, {
+        big: big,
+        cur: Object.assign({}, face(b), {
+          bio:b.bio, status:st[0], statusColor:st[1], anim: off ? '' : 'bob',
+          doneToday:String(b.done + Object.keys(verdict).filter(function(id){ return DRAFTS[id].bot === view && verdict[id] === 'ok'; }).length),
+          pendingN:String(waitBy[view] || 0), skills:b.skills, team:b.team,
+          mates: b.mates.map(function(n){ return Object.assign({}, BY[n], { pick:function(){ self.open(n); } }); }),
+          onStr: off ? 'false' : 'true', toggleLabel: (off ? 'Nyalakan ' : 'Hentikan sementara ') + view,
+          toggleText: off ? 'Istirahat' : 'Aktif', trackColor: off ? '#C9CDE0' : '#1E1B2E', knobSide: off ? 'flex-start' : 'flex-end',
+          toggle: function(){ var p = Object.assign({}, paused); p[view] = !off; self.setState({ paused:p }); self.say(off ? view + ' kembali bekerja' : view + ' istirahat dulu', view); }
+        }),
+        chips: b.chips.map(function(c){ return { label:c, pick:function(){ self.talk(view, c); } }; }),
+        thread: (threads[view] || []).map(function(m){
+          return { mine:m.from === 'you', theirs:m.from === 'bot', text:m.text, cls:m.cls, hasDraft:!!m.draft, card: m.draft ? cardFor(m.draft) : {fields:[]} };
+        }),
+        isTyping: !!typing[view],
+        chatMsg: s.chatMsg || '',
+        placeholder: 'Suruh atau tanya ' + view + '…',
+        onChatMsg: function(e){ self.setState({ chatMsg:e.target.value }); },
+        onChatKey: function(e){ if (e.key === 'Enter') self.talk(view, self.state.chatMsg); },
+        sendChat: function(){ self.talk(view, self.state.chatMsg); }
+      });
+    }
+    return out;
+  }
+}
+
+</script>
+</body>
+</html>

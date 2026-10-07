@@ -4,7 +4,7 @@
  */
 
 export type ShapeName = "kacang" | "hantu" | "gumpal" | "awan" | "tetes" | "mochi";
-export type MouthName = "open" | "smile" | "focus" | "w" | "o";
+export type MouthName = "open" | "smile" | "focus" | "w" | "o" | "sleep";
 
 type ShapeDef = {
   /** Body outline path, in the 200×200 viewBox. */
@@ -68,6 +68,7 @@ export const MOUTHS: Record<MouthName, MouthDef> = {
   focus: { d: "M-7 16 Q0 13 7 16", fill: "none", sw: 4.5 },
   w: { d: "M-9 13 Q-4.5 19 0 13 Q4.5 19 9 13", fill: "none", sw: 4 },
   o: { d: "M-5 18 a5 6 0 1 0 10 0 a5 6 0 1 0 -10 0 Z", fill: "#1E1B2E", sw: 0 },
+  sleep: { d: "M-6 17 L6 17", fill: "none", sw: 4 },
 };
 
 export type BotShape = {
@@ -91,6 +92,8 @@ export type BotShape = {
   look: string;
   /** Animation delay, shared by bob/blink/glance. */
   delay: string;
+  /** Draw the paused face: closed eyes instead of the blinking ones. */
+  eyesClosed?: boolean;
 };
 
 export type CrewMember = {
@@ -139,6 +142,32 @@ function mk(seed: BotSeed): CrewMember {
     mouthSw: mouth.sw,
     look: seed.look,
     delay: seed.delay,
+  };
+}
+
+export type FaceVariant = {
+  /** Mouth expression; keeps the member's own mouth when omitted. */
+  mouth?: MouthName;
+  /** Pupil offset transform; keeps the member's own when omitted. */
+  look?: string;
+  /** Draw the paused (closed-eye) face. */
+  closed?: boolean;
+};
+
+/**
+ * Rebuild a crew member's face with a different mouth, pupil offset or closed
+ * eyes — the design's `mk()` variant helper, used for paused and typing faces.
+ * Everything else (shape, colours, feet, delay) is kept as-is.
+ */
+export function withFace(member: BotShape, variant: FaceVariant = {}): BotShape {
+  const mouth = variant.mouth ? MOUTHS[variant.mouth] : null;
+  return {
+    ...member,
+    mouth: mouth ? mouth.d : member.mouth,
+    mouthFill: mouth ? mouth.fill : member.mouthFill,
+    mouthSw: mouth ? mouth.sw : member.mouthSw,
+    look: variant.look ?? member.look,
+    eyesClosed: variant.closed ?? false,
   };
 }
 

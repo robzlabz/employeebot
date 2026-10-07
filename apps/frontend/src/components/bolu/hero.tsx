@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { WorkspaceBoard } from "@/components/bolu/workspace-board";
 
 export function Hero() {
@@ -20,12 +21,12 @@ export function Hero() {
           cek dan setujui.
         </p>
         <div className="mt-1 flex flex-wrap gap-3">
-          <a
-            href="#mulai"
+          <Link
+            href="/dashboard"
             className="inline-flex min-h-12 items-center rounded-full bg-bolu-accent px-[26px] py-3.5 text-[18px] font-bold text-white no-underline hover:text-white"
           >
             Coba gratis
-          </a>
+          </Link>
           <a
             href="#cara-kerja"
             className="inline-flex min-h-12 items-center rounded-full border-2 border-bolu-ink px-6 py-3 text-[18px] font-semibold text-bolu-ink no-underline hover:text-bolu-ink"

@@ -27,7 +27,7 @@ export function SiteNav() {
           </Link>
         ))}
         <Link
-          href="/#mulai"
+          href="/dashboard"
           className="inline-flex min-h-11 items-center rounded-full bg-bolu-ink px-5 py-[11px] font-semibold text-white no-underline"
         >
           Coba gratis
