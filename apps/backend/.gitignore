@@ -1,0 +1,11 @@
+# Build output
+bin/
+*.exe
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Logs / scratch
+*.log

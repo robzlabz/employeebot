@@ -1,0 +1,56 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: employeebot-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-employeebot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-employeebot_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-employeebot}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-employeebot} -d $${POSTGRES_DB:-employeebot}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    container_name: employeebot-backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    environment:
+      ENVIRONMENT: local
+      HTTP_ADDRESS: ":8080"
+      DATABASE_URL: "postgres://${POSTGRES_USER:-employeebot}:${POSTGRES_PASSWORD:-employeebot_secret}@postgres:5432/${POSTGRES_DB:-employeebot}?sslmode=disable"
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-in-production}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+    container_name: employeebot-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+      WATCHPACK_POLLING: "true"
+    volumes:
+      - ./apps/frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

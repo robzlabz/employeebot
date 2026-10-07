@@ -1,0 +1,19 @@
+# Non-local defaults. Every secret must be supplied through the environment.
+Application:
+  Environment: "production"
+
+Http:
+  Address: ":8080"
+  ReadTimeout: "30s"
+  WriteTimeout: "30s"
+  ApiPrefix: "/api"
+
+Database:
+  URL: ""
+  MaxOpenConns: 100
+  MaxIdleConns: 10
+  ConnMaxLifetime: 3600
+
+JWT:
+  Secret: ""
+  ExpireHours: 24
