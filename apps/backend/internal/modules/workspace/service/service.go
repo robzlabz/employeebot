@@ -33,9 +33,6 @@ type Deps struct {
 	Repository domain.Repository
 	// Mailer delivers invitation links. Optional.
 	Mailer domain.Mailer
-	// Provisioner copies the Bolu templates into a new workspace. Optional: a
-	// no-op is used until EPIC 3 lands.
-	Provisioner domain.Provisioner
 	// Tokens generates the random invitation token and its hash.
 	Tokens domain.Tokens
 	Config Config
@@ -44,7 +41,6 @@ type Deps struct {
 type service struct {
 	deps   domain.Repository
 	mail   domain.Mailer
-	prov   domain.Provisioner
 	tokens domain.Tokens
 	cfg    Config
 }
@@ -60,13 +56,9 @@ func New(deps Deps) domain.Service {
 	if deps.Config.DefaultTimezone == "" {
 		deps.Config.DefaultTimezone = "Asia/Jakarta"
 	}
-	if deps.Provisioner == nil {
-		deps.Provisioner = noopProvisioner{}
-	}
 	return &service{
 		deps:   deps.Repository,
 		mail:   deps.Mailer,
-		prov:   deps.Provisioner,
 		tokens: deps.Tokens,
 		cfg:    deps.Config,
 	}
@@ -101,17 +93,9 @@ func (s *service) Onboard(ctx context.Context, userID uuid.UUID, req domain.Onbo
 		return domain.OnboardResult{}, err
 	}
 
-	if result.Created {
-		// Hand the new workspace to the provisioner, which copies the Bolu
-		// templates into Tim Bolu (EPIC 3). Until it lands this is a no-op, so
-		// the onboarding flow is complete today.
-		if teamID, ok := boluTeamID(result.Teams); ok {
-			if err := s.prov.Provision(ctx, result.Workspace.ID, teamID); err != nil {
-				return domain.OnboardResult{}, fmt.Errorf("workspace: provision templates: %w", err)
-			}
-		}
-	}
-
+	// The Bolu templates are copied by the repository, inside the same
+	// transaction that creates the workspace, so the result already carries the
+	// agents a caller would expect to find.
 	return result, nil
 }
 
@@ -294,21 +278,11 @@ func (s *service) sendInvitation(ctx context.Context, email, token string, invit
 		return nil
 	}
 
-	link := fmt.Sprintf("%s/gabung?token=%s", strings.TrimRight(s.cfg.FrontendURL, "/"), token)
+	link := fmt.Sprintf("%s/join?token=%s", strings.TrimRight(s.cfg.FrontendURL, "/"), token)
 	body := fmt.Sprintf("Kamu diundang bergabung ke workspace Bolu sebagai %s.\n\nBuka tautan ini untuk menerima:\n\n%s\n\nTautan berlaku sampai %s.",
 		invitation.Role, link, invitation.ExpiresAt.UTC().Format("2 January 2006 15:04 MST"))
 
 	return s.mail.Send(ctx, email, "Undangan bergabung ke Bolu", body)
-}
-
-// boluTeamID picks the Tim Bolu team from the teams created with a workspace.
-func boluTeamID(teams []domain.Team) (uuid.UUID, bool) {
-	for _, team := range teams {
-		if team.Kind == "bolu" {
-			return team.ID, true
-		}
-	}
-	return uuid.Nil, false
 }
 
 func normalizeEmail(email string) (string, error) {
@@ -321,10 +295,5 @@ func normalizeEmail(email string) (string, error) {
 	}
 	return strings.ToLower(trimmed), nil
 }
-
-// noopProvisioner is used until EPIC 3 (#27) provides the template copy.
-type noopProvisioner struct{}
-
-func (noopProvisioner) Provision(context.Context, uuid.UUID, uuid.UUID) error { return nil }
 
 var _ domain.Service = (*service)(nil)

@@ -95,7 +95,7 @@ func (s *service) Register(ctx context.Context, req domain.RegisterRequest) (dom
 		return domain.User{}, err
 	}
 	if err := s.deps.Passwords.Validate(req.Password); err != nil {
-		return domain.User{}, fmt.Errorf("%w: %v", domain.ErrWeakPassword, err)
+		return domain.User{}, fmt.Errorf("%w: %w", domain.ErrWeakPassword, err)
 	}
 
 	hash, err := s.deps.Passwords.Hash(req.Password)
@@ -120,13 +120,18 @@ func (s *service) Register(ctx context.Context, req domain.RegisterRequest) (dom
 func (s *service) ResendVerification(ctx context.Context, email string) error {
 	normalized, err := normalizeEmail(email)
 	if err != nil {
-		return nil
+		// A malformed address is answered like an unknown one, so the response
+		// never depends on what the caller typed.
+		return nil //nolint:nilerr // deliberate: the answer must not vary
 	}
 
 	user, err := s.deps.Repository.UserByEmail(ctx, normalized)
 	if err != nil {
+		// An unknown address is answered exactly like a known one, so the
+		// endpoint cannot be used to discover accounts. The error is
+		// deliberately dropped.
 		if errors.Is(err, domain.ErrUserNotFound) {
-			return nil
+			return nil //nolint:nilerr // deliberate: no account enumeration
 		}
 		return err
 	}
@@ -247,7 +252,7 @@ func (s *service) Logout(ctx context.Context, refreshToken string) error {
 func (s *service) RequestPasswordReset(ctx context.Context, email string) error {
 	normalized, err := normalizeEmail(email)
 	if err != nil {
-		return nil
+		return nil //nolint:nilerr // deliberate: the answer must not vary
 	}
 
 	user, err := s.deps.Repository.UserByEmail(ctx, normalized)
@@ -269,7 +274,7 @@ func (s *service) RequestPasswordReset(ctx context.Context, email string) error 
 	}
 
 	return s.send(ctx, user.Email, "Atur ulang kata sandi Bolu",
-		fmt.Sprintf("Buka tautan ini untuk mengatur ulang kata sandi:\n\n%s/lupa-sandi?token=%s\n\nTautan berlaku %s.",
+		fmt.Sprintf("Buka tautan ini untuk mengatur ulang kata sandi:\n\n%s/forgot-password?token=%s\n\nTautan berlaku %s.",
 			strings.TrimRight(s.deps.Config.FrontendURL, "/"), raw, humanize(s.deps.Config.ResetTTL)))
 }
 
@@ -280,7 +285,7 @@ func (s *service) ResetPassword(ctx context.Context, req domain.ResetPasswordReq
 		return domain.ErrInvalidToken
 	}
 	if err := s.deps.Passwords.Validate(req.NewPassword); err != nil {
-		return fmt.Errorf("%w: %v", domain.ErrWeakPassword, err)
+		return fmt.Errorf("%w: %w", domain.ErrWeakPassword, err)
 	}
 
 	userID, err := s.deps.Repository.ConsumePasswordResetToken(ctx, domain.HashToken(req.Token))
@@ -325,7 +330,7 @@ func (s *service) GoogleCallback(ctx context.Context, req domain.GoogleCallbackR
 		return domain.Session{}, domain.ErrGoogleNotConfigured
 	}
 	if err := s.deps.States.Verify(req.State); err != nil {
-		return domain.Session{}, fmt.Errorf("%w: %v", domain.ErrInvalidToken, err)
+		return domain.Session{}, fmt.Errorf("%w: %w", domain.ErrInvalidToken, err)
 	}
 
 	info, err := s.deps.Google.Exchange(ctx, req.Code)
@@ -374,7 +379,7 @@ func (s *service) GoogleCallback(ctx context.Context, req domain.GoogleCallbackR
 func (s *service) Authenticate(ctx context.Context, accessToken string) (domain.User, error) {
 	claims, err := s.deps.Issuer.Verify(accessToken)
 	if err != nil {
-		return domain.User{}, fmt.Errorf("%w: %v", domain.ErrInvalidToken, err)
+		return domain.User{}, fmt.Errorf("%w: %w", domain.ErrInvalidToken, err)
 	}
 
 	record, err := s.deps.Repository.SessionByID(ctx, claims.SessionID)
@@ -469,9 +474,9 @@ func (s *service) allowLoginAttempt(ctx context.Context, email, ip string) error
 	for _, key := range keys {
 		result, err := s.deps.Throttle.Allow(ctx, key, s.deps.Config.LoginThrottleCapacity, s.deps.Config.LoginThrottleRefill)
 		if err != nil {
-			// A limiter failure must not lock users out; the credentials check
-			// still runs.
-			return nil
+			// A Redis failure degrades to "no throttling" rather than "nobody
+			// can sign in": the credentials check still runs below.
+			return nil //nolint:nilerr // deliberate: fail open on a limiter outage
 		}
 		if !result.Allowed {
 			return fmt.Errorf("%w: retry in %s", domain.ErrTooManyAttempts, result.RetryAfter.Round(time.Second))
@@ -504,7 +509,7 @@ func (s *service) sendVerification(ctx context.Context, user domain.User) error 
 	}
 
 	return s.send(ctx, user.Email, "Verifikasi email Bolu",
-		fmt.Sprintf("Buka tautan ini untuk memverifikasi email:\n\n%s/verifikasi?token=%s\n\nTautan berlaku %s.",
+		fmt.Sprintf("Buka tautan ini untuk memverifikasi email:\n\n%s/verify?token=%s\n\nTautan berlaku %s.",
 			strings.TrimRight(s.deps.Config.FrontendURL, "/"), raw, humanize(s.deps.Config.VerificationTTL)))
 }
 

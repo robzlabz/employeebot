@@ -320,3 +320,136 @@ export function acceptInvitation(token: string): Promise<ApiResult<Workspace>> {
 }
 
 export { API_URL };
+
+// ---------------------------------------------------------------- agent registry
+
+export type Agent = {
+  id: string;
+  team_id: string;
+  team_name: string;
+  team_kind: string;
+  name: string;
+  role: string;
+  persona: string;
+  tone: string;
+  shape: string;
+  color: string;
+  /** The stored switch: active or resting. */
+  status: string;
+  /** Derived from tasks and drafts, never stored: working | waiting | idle | resting. */
+  display_status: string;
+  reason?: { kind: string; id: string; title?: string; status?: string; created_at: string };
+  template_key?: string;
+  tools: string[];
+  default_model: Record<string, unknown>;
+  created_at: string;
+};
+
+export type AgentTeam = {
+  id: string;
+  name: string;
+  kind: string;
+  agents: Agent[];
+};
+
+export type AgentTemplate = {
+  key: string;
+  name: string;
+  role: string;
+  persona: string;
+  tone: string;
+  shape: string;
+  color: string;
+  tools: string[];
+  integrations: string[];
+};
+
+export type Tool = {
+  name: string;
+  integration_app: string;
+  label: string;
+  description: string;
+};
+
+export type Grant = {
+  id: string;
+  agent_id: string;
+  integration_id: string;
+  app: string;
+  account_label: string;
+  status: string;
+  permission: string;
+};
+
+export type Integration = {
+  id: string;
+  app: string;
+  account_label: string;
+  status: string;
+};
+
+/** listAgentTeams returns Tim Bolu and Tim Hore with their agents. */
+export function listAgentTeams(workspaceId: string): Promise<ApiResult<AgentTeam[]>> {
+  return request<AgentTeam[]>("/teams", { workspace: workspaceId });
+}
+
+/** listTemplates returns the seeded Bolu profiles. */
+export function listTemplates(): Promise<ApiResult<AgentTemplate[]>> {
+  return request<AgentTemplate[]>("/agents/templates");
+}
+
+/** listIntegrations returns the workspace's connected applications. */
+export function listIntegrations(workspaceId: string): Promise<ApiResult<Integration[]>> {
+  return request<Integration[]>("/agents/integrations", { workspace: workspaceId });
+}
+
+/** createAgent adds a Bolu, from a template, from a copy, or from scratch. */
+export function createAgent(
+  workspaceId: string,
+  input: { team_id: string; name?: string; template_key?: string; copy_from?: string; persona?: string; role?: string },
+): Promise<ApiResult<Agent>> {
+  return request<Agent>("/agents", { method: "POST", body: input, workspace: workspaceId });
+}
+
+/** updateAgent edits a Bolu profile. */
+export function updateAgent(
+  workspaceId: string,
+  agentId: string,
+  input: { name: string; role?: string; persona?: string; tone?: string; tools?: string[] },
+): Promise<ApiResult<Agent>> {
+  return request<Agent>(`/agents/${agentId}`, { method: "PATCH", body: input, workspace: workspaceId });
+}
+
+/** setAgentStatus flips the rest switch. */
+export function setAgentStatus(workspaceId: string, agentId: string, status: string): Promise<ApiResult<Agent>> {
+  return request<Agent>(`/agents/${agentId}/status`, { method: "PATCH", body: { status }, workspace: workspaceId });
+}
+
+/** deleteAgent removes a Bolu from the registry, keeping its history. */
+export function deleteAgent(workspaceId: string, agentId: string): Promise<ApiResult<null>> {
+  return request<null>(`/agents/${agentId}`, { method: "DELETE", workspace: workspaceId });
+}
+
+/** listAgentGrants returns the integrations one Bolu may use. */
+export function listAgentGrants(workspaceId: string, agentId: string): Promise<ApiResult<Grant[]>> {
+  return request<Grant[]>(`/agents/${agentId}/grants`, { workspace: workspaceId });
+}
+
+/** setAgentGrant gives a Bolu read or read-write access to an integration. */
+export function setAgentGrant(
+  workspaceId: string,
+  agentId: string,
+  integrationId: string,
+  permission: string,
+): Promise<ApiResult<Grant>> {
+  return request<Grant>(`/agents/${agentId}/grants`, {
+    method: "PUT",
+    body: { integration_id: integrationId, permission },
+    workspace: workspaceId,
+  });
+}
+
+/** listAgentTools returns the tools a Bolu may actually call. */
+export function listAgentTools(workspaceId: string, agentId: string): Promise<ApiResult<Tool[]>> {
+  return request<Tool[]>(`/agents/${agentId}/tools`, { workspace: workspaceId });
+}

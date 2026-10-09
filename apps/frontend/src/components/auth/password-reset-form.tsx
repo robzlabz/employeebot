@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import { Alert, AuthShell, Field, SubmitButton } from "@/components/auth/auth-shell";
@@ -13,8 +13,9 @@ import { forgotPassword, resetPassword } from "@/lib/api";
  * identically whether or not the address exists, so this page must not suggest
  * otherwise either.
  */
-export function PasswordResetForm({ token }: { token: string | null }) {
+export function PasswordResetForm() {
   const router = useRouter();
+  const token = useSearchParams().get("token");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -52,7 +53,7 @@ export function PasswordResetForm({ token }: { token: string | null }) {
       return;
     }
     setMessage("Kata sandi diperbarui. Semua sesi lama sudah diakhiri — silakan masuk lagi.");
-    setTimeout(() => router.push("/masuk"), 1200);
+    setTimeout(() => router.push("/login"), 1200);
   }
 
   if (token) {
@@ -62,7 +63,7 @@ export function PasswordResetForm({ token }: { token: string | null }) {
         subtitle="Pilih kata sandi baru untuk akunmu."
         footer={
           <>
-            Sudah ingat? <Link href="/masuk">Masuk</Link>
+            Sudah ingat? <Link href="/login">Masuk</Link>
           </>
         }
       >
@@ -92,7 +93,7 @@ export function PasswordResetForm({ token }: { token: string | null }) {
       subtitle="Kami kirim tautan untuk mengatur ulang kata sandimu."
       footer={
         <>
-          Ingat kata sandimu? <Link href="/masuk">Masuk</Link>
+          Ingat kata sandimu? <Link href="/login">Masuk</Link>
         </>
       }
     >

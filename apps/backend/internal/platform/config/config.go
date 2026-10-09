@@ -14,6 +14,7 @@ type Config struct {
 	Auth        AuthConfig
 	Google      GoogleConfig
 	Mail        MailConfig
+	Plan        PlanConfig
 	Logging     LoggingConfig
 }
 
@@ -116,6 +117,14 @@ type MailConfig struct {
 	Port     int    `mapstructure:"Port" validate:"optional"`
 	Username string `mapstructure:"Username" validate:"optional"`
 	Password string `mapstructure:"Password" validate:"optional"`
+}
+
+// PlanConfig holds the plan defaults the product has not decided yet. The
+// subscription itself arrives in EPIC 12 (#97); until then these values bound
+// what a workspace may create.
+type PlanConfig struct {
+	// MaxAgentsPerWorkspace caps the Bolu registry. Zero means unlimited.
+	MaxAgentsPerWorkspace int `mapstructure:"MaxAgentsPerWorkspace" validate:"optional"`
 }
 
 // LoggingConfig holds structured logging settings.

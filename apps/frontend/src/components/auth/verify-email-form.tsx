@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Alert, AuthShell, SubmitButton } from "@/components/auth/auth-shell";
@@ -12,8 +12,11 @@ import { resendVerification, verifyEmail } from "@/lib/api";
  * one it offers to send a new link, which is what the login page points at when
  * an account has not been verified yet.
  */
-export function VerifyEmailForm({ token, email }: { token: string | null; email: string | null }) {
+export function VerifyEmailForm() {
   const router = useRouter();
+  const params = useSearchParams();
+  const token = params.get("token");
+  const email = params.get("email");
 
   // The token case starts in "verifying": the request is already on its way, so
   // no state is set synchronously from the effect.
@@ -42,8 +45,10 @@ export function VerifyEmailForm({ token, email }: { token: string | null; email:
       }
 
       setStatus("verified");
-      // A verified account with no workspace belongs in onboarding.
-      setTimeout(() => router.push("/onboarding"), 900);
+      // Verifying does not open a session, so the next step is signing in; the
+      // login page then sends the account on to onboarding if it has no
+      // workspace yet.
+      setTimeout(() => router.push("/login?verified=1"), 1200);
     })();
 
     return () => {
@@ -69,7 +74,7 @@ export function VerifyEmailForm({ token, email }: { token: string | null; email:
     return (
       <AuthShell title="Verifikasi email" subtitle="Sebentar, kami periksa tautannya.">
         {status === "verifying" ? <Alert tone="info">Memeriksa tautan…</Alert> : null}
-        {status === "verified" ? <Alert tone="success">Email terverifikasi. Mengalihkan ke onboarding…</Alert> : null}
+        {status === "verified" ? <Alert tone="success">Email terverifikasi. Silakan masuk untuk lanjut.</Alert> : null}
         {status === "failed" ? <Alert tone="error">{message ?? "Tautan tidak berlaku."}</Alert> : null}
 
         {status === "failed" ? (
@@ -100,7 +105,7 @@ export function VerifyEmailForm({ token, email }: { token: string | null; email:
       subtitle="Kami mengirim tautan verifikasi. Klik tautan itu untuk mengaktifkan akun."
       footer={
         <>
-          Sudah verifikasi? <Link href="/masuk">Masuk</Link>
+          Sudah verifikasi? <Link href="/login">Masuk</Link>
         </>
       }
     >

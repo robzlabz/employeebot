@@ -104,21 +104,14 @@ type tokens struct{}
 
 func (tokens) Generate() (string, string, error) { return authn.GenerateToken() }
 
-// provisioner is the template-copy seam. EPIC 3 (#27) swaps in the real copy;
-// until then onboarding completes without creating any Bolu.
-type provisioner struct{}
-
-func (provisioner) Provision(context.Context, uuid.UUID, uuid.UUID) error { return nil }
-
 // Compile-time checks that every adapter satisfies the port it is wired to.
 var (
-	_ authdomain.TokenIssuer      = tokenIssuer{}
-	_ authdomain.Mailer           = mailer{}
-	_ authdomain.GoogleProvider   = googleProvider{}
-	_ authdomain.LoginThrottle    = loginThrottle{}
-	_ authdomain.Passwords        = passwords{}
-	_ authdomain.Tokens           = tokens{}
-	_ workspacedomain.Mailer      = mailer{}
-	_ workspacedomain.Tokens      = tokens{}
-	_ workspacedomain.Provisioner = provisioner{}
+	_ authdomain.TokenIssuer    = tokenIssuer{}
+	_ authdomain.Mailer         = mailer{}
+	_ authdomain.GoogleProvider = googleProvider{}
+	_ authdomain.LoginThrottle  = loginThrottle{}
+	_ authdomain.Passwords      = passwords{}
+	_ authdomain.Tokens         = tokens{}
+	_ workspacedomain.Mailer    = mailer{}
+	_ workspacedomain.Tokens    = tokens{}
 )

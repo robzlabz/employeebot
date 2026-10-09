@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	agentservice "github.com/robzlabz/employeebot/apps/backend/internal/modules/agent/service"
 	authdomain "github.com/robzlabz/employeebot/apps/backend/internal/modules/auth/domain"
 	authservice "github.com/robzlabz/employeebot/apps/backend/internal/modules/auth/service"
 	workspaceservice "github.com/robzlabz/employeebot/apps/backend/internal/modules/workspace/service"
@@ -100,12 +101,17 @@ func (c *Container) openAuth(ctx context.Context, cfg *config.Config) error {
 		},
 	})
 
+	if c.Repositories.Agent != nil {
+		c.Services.Agent = agentservice.New(agentservice.Deps{
+			Repository: c.Repositories.Agent,
+			Config:     agentservice.Config{MaxAgentsPerWorkspace: cfg.Plan.MaxAgentsPerWorkspace},
+		})
+	}
+
 	c.Services.Workspace = workspaceservice.New(workspaceservice.Deps{
 		Repository: c.Repositories.Workspace,
 		Mailer:     mailer{sender: c.Mailer},
-		// EPIC 3 (#27) replaces this seam with the Bolu template copy.
-		Provisioner: provisioner{},
-		Tokens:      tokens{},
+		Tokens:     tokens{},
 		Config: workspaceservice.Config{
 			FrontendURL: cfg.Application.FrontendURL,
 		},

@@ -277,12 +277,12 @@ func (h *Handler) GoogleCallback(c *fiber.Ctx) error {
 	})
 	if err != nil {
 		h.log.Warn("google sign-in failed", zap.Error(err))
-		return c.Redirect(h.frontendTarget("masuk", "google_error=1"), fiber.StatusFound)
+		return c.Redirect(h.frontendTarget("login", "google_error=1"), fiber.StatusFound)
 	}
 
 	h.setRefreshCookie(c, session)
 
-	target := "masuk"
+	target := "login"
 	if !session.User.Onboarded {
 		target = "onboarding"
 	}

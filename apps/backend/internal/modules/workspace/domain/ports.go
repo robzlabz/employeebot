@@ -30,12 +30,6 @@ type Mailer interface {
 	Send(ctx context.Context, to, subject, body string) error
 }
 
-// Provisioner copies the Bolu templates into a new workspace. EPIC 3 (#27)
-// provides the real implementation; until then the container wires a no-op.
-type Provisioner interface {
-	Provision(ctx context.Context, workspaceID, teamID uuid.UUID) error
-}
-
 // HashToken hashes an invitation token for storage. Only the hash is persisted,
 // so a database leak does not hand over usable invitations.
 func HashToken(raw string) string {

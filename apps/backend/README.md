@@ -49,6 +49,7 @@ make migrate-up      # apply migrations to $DATABASE_URL
 | `health` | `GET /health`, `GET /ready` | Liveness never touches a dependency; readiness reports each one |
 | `auth` | `/api/auth/*` | Register, verify, login, refresh, logout, password reset, Google |
 | `workspace` | `/api/workspaces/*`, `/api/invitations/accept` | Onboarding, members, roles, invitations |
+| `agent` | `/api/agents/*`, `/api/teams` | The Bolu registry: profiles, derived status, tools, grants |
 
 ### Authentication
 
@@ -81,6 +82,17 @@ statement, so a query that forgets `WHERE workspace_id = ...` still cannot read
 another workspace. `workspaces` carries `owner_user_id` so a workspace can be
 read back inside the transaction that creates it.
 
+### Agent registry
+
+- A workspace always starts with the six seeded Bolu, copied **inside the
+  onboarding transaction** by the agent repository acting as the workspace
+  module's `TemplateProvisioner`. A workspace can therefore never exist without
+  its team.
+- The display status is derived from tasks and drafts, never stored; only the
+  rest switch is a column.
+- A tool only reaches the model when its integration was granted to that Bolu,
+  and a `read` grant keeps only the read-labelled tools.
+
 ## Configuration
 
 Configuration is read from `internal/platform/config/config.yaml` (or
@@ -103,3 +115,6 @@ prints the links, `smtp` sends them).
 Deployment and region decisions: `docs/adr/0001-temporal-dan-region.md`.
 Test strategy and gates: `docs/testing.md`.
 API contract: `docs/api.md`.
+
+The web app routes are English: `/signup`, `/login`, `/verify`,
+`/forgot-password`, `/join`, `/onboarding`, `/settings/team`.

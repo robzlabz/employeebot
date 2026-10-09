@@ -27,14 +27,27 @@ const (
 	teamHore = "Tim Hore"
 )
 
+// TemplateProvisioner copies the Bolu templates into a new workspace, inside the
+// onboarding transaction. It is declared here rather than in the domain because
+// its signature carries a transaction handle, which is an infrastructure type;
+// the container hands over the agent module's repository.
+type TemplateProvisioner interface {
+	Provision(ctx context.Context, tx pgx.Tx, workspaceID, teamID uuid.UUID) error
+}
+
 // Repository is the Postgres-backed implementation of domain.Repository.
 type Repository struct {
 	pool *database.Pool
+	// provisioner copies the Bolu templates inside the onboarding transaction.
+	// It is the agent module's repository, handed over by the container so this
+	// module never imports it.
+	provisioner TemplateProvisioner
 }
 
-// New builds the repository.
-func New(pool *database.Pool) *Repository {
-	return &Repository{pool: pool}
+// New builds the repository. A nil provisioner leaves a new workspace without
+// its Bolu, which is what a deployment without the agent module looks like.
+func New(pool *database.Pool, provisioner TemplateProvisioner) *Repository {
+	return &Repository{pool: pool, provisioner: provisioner}
 }
 
 // Onboard creates the workspace, its owner membership and the two default teams
@@ -99,6 +112,7 @@ func (r *Repository) Onboard(ctx context.Context, userID uuid.UUID, req domain.O
 		}
 
 		teams := make([]sqlcgen.Team, 0, 2)
+		var boluTeamID uuid.UUID
 		for _, team := range []struct {
 			name string
 			kind string
@@ -114,7 +128,18 @@ func (r *Repository) Onboard(ctx context.Context, userID uuid.UUID, req domain.O
 			if err != nil {
 				return fmt.Errorf("workspace: create team %s: %w", team.name, err)
 			}
+			if team.kind == "bolu" {
+				boluTeamID = createdTeam.ID
+			}
 			teams = append(teams, createdTeam)
+		}
+
+		// The Bolu templates are copied inside this transaction, so a workspace
+		// never exists without its team.
+		if r.provisioner != nil {
+			if err := r.provisioner.Provision(ctx, tx, created.ID, boluTeamID); err != nil {
+				return err
+			}
 		}
 
 		result = domain.OnboardResult{

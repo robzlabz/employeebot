@@ -2,6 +2,7 @@ package container
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -17,14 +18,36 @@ func requestContextMiddleware(log *zap.Logger) fiber.Handler {
 	return middleware.RequestContext(log)
 }
 
-// corsMiddleware allows the frontend (dev on :3000, docker on :3000) to call
-// the API from the browser.
-func corsMiddleware() fiber.Handler {
+// corsMiddleware lets the web app call the API from the browser.
+//
+// The client sends the refresh cookie, so the response must name the caller's
+// origin exactly: browsers reject `Access-Control-Allow-Origin: *` on a
+// credentialed request. The configured origins are allowed; with none
+// configured (local development) the request origin is reflected, which is what
+// makes `localhost:3000` and the docker frontend both work.
+func corsMiddleware(origins []string) fiber.Handler {
+	allowed := make(map[string]bool, len(origins))
+	for _, origin := range origins {
+		allowed[origin] = true
+	}
+
 	return cors.New(cors.Config{
-		AllowOrigins:  "*",
-		AllowMethods:  "GET,POST,HEAD,PUT,DELETE,PATCH,OPTIONS",
-		AllowHeaders:  "*",
+		AllowOrigins: strings.Join(origins, ","),
+		AllowMethods: "GET,POST,HEAD,PUT,DELETE,PATCH,OPTIONS",
+		// An explicit list, not "*": on a credentialed request the browser reads
+		// the wildcard literally instead of as a wildcard, so the preflight
+		// would fail for every real header.
+		AllowHeaders:  "Content-Type,Authorization,X-Workspace-Id,X-Request-Id,X-Trace-Id,Accept,Origin",
 		ExposeHeaders: "X-Request-Id,X-Trace-Id",
+		// Required for the refresh cookie to be sent and stored.
+		AllowCredentials: true,
+		AllowOriginsFunc: func(origin string) bool {
+			if origin == "" {
+				return false
+			}
+			// No configured list means local development: reflect the caller.
+			return len(allowed) == 0 || allowed[origin]
+		},
 	})
 }
 

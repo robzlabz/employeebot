@@ -40,6 +40,8 @@ type Agent struct {
 	DefaultModel []byte
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
+	DeletedAt    *time.Time
+	Tools        []byte
 }
 
 type AgentGrant struct {
@@ -362,6 +364,14 @@ type Team struct {
 	Kind        string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+}
+
+type ToolCatalog struct {
+	Name           string
+	IntegrationApp string
+	Label          string
+	Description    string
+	CreatedAt      time.Time
 }
 
 type UsageLedger struct {

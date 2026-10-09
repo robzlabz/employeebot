@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -18,7 +17,6 @@ type harness struct {
 	service domain.Service
 	repo    *mocks.Repository
 	mailer  *mocks.Mailer
-	prov    *mocks.Provisioner
 	tokens  *mocks.Tokens
 	now     time.Time
 }
@@ -29,16 +27,14 @@ func newHarness(t *testing.T, opts ...func(*Deps)) *harness {
 	h := &harness{
 		repo:   mocks.NewRepository(t),
 		mailer: mocks.NewMailer(t),
-		prov:   mocks.NewProvisioner(t),
 		tokens: mocks.NewTokens(t),
 		now:    time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC),
 	}
 
 	deps := Deps{
-		Repository:  h.repo,
-		Mailer:      h.mailer,
-		Provisioner: h.prov,
-		Tokens:      h.tokens,
+		Repository: h.repo,
+		Mailer:     h.mailer,
+		Tokens:     h.tokens,
 		Config: Config{
 			InvitationTTL: 7 * 24 * time.Hour,
 			FrontendURL:   "https://app.example.com",
@@ -58,7 +54,7 @@ func scope() domain.Scope {
 }
 
 func TestOnboard(t *testing.T) {
-	t.Run("creates the workspace and hands the Bolu team to the provisioner", func(t *testing.T) {
+	t.Run("creates the workspace with its two default teams", func(t *testing.T) {
 		h := newHarness(t)
 		userID := uuid.New()
 		workspace := domain.Workspace{ID: uuid.New(), Name: "Toko Sinar", Timezone: "Asia/Jakarta"}
@@ -76,9 +72,6 @@ func TestOnboard(t *testing.T) {
 					Created:   true,
 				}, nil
 			}).Once()
-
-		// EPIC 3 fills this seam; today it must be called with the Bolu team.
-		h.prov.EXPECT().Provision(mock.Anything, workspace.ID, boluTeam.ID).Return(nil).Once()
 
 		result, err := h.service.Onboard(context.Background(), userID, domain.OnboardRequest{
 			Name:          "  Toko Sinar ",
@@ -269,7 +262,7 @@ func TestInvite(t *testing.T) {
 			}).Once()
 		h.mailer.EXPECT().Send(mock.Anything, "new@example.com", mock.Anything, mock.Anything).
 			RunAndReturn(func(_ context.Context, _, _, body string) error {
-				require.Contains(t, body, "https://app.example.com/gabung?token=raw-token")
+				require.Contains(t, body, "https://app.example.com/join?token=raw-token")
 				require.Contains(t, body, "admin")
 				return nil
 			}).Once()
@@ -393,40 +386,4 @@ func TestUpdateWorkspace(t *testing.T) {
 		_, err := h.service.Update(context.Background(), scope(), domain.RoleOwner, domain.UpdateRequest{Name: ""})
 		require.Error(t, err)
 	})
-}
-
-// TestProvisionerIsOptional keeps onboarding working before EPIC 3 lands.
-func TestProvisionerIsOptional(t *testing.T) {
-	h := newHarness(t, func(deps *Deps) { deps.Provisioner = nil })
-	userID := uuid.New()
-
-	h.repo.EXPECT().Onboard(mock.Anything, userID, mock.Anything).
-		Return(domain.OnboardResult{
-			Workspace: domain.Workspace{ID: uuid.New(), Name: "Toko"},
-			Teams:     []domain.Team{{ID: uuid.New(), Name: "Tim Bolu", Kind: "bolu"}},
-			Created:   true,
-		}, nil).Once()
-
-	_, err := h.service.Onboard(context.Background(), userID, domain.OnboardRequest{Name: "Toko"})
-	require.NoError(t, err)
-}
-
-// TestOnboardSurfacesProvisioningFailure keeps a failed template copy visible
-// instead of silently producing an empty workspace.
-func TestOnboardSurfacesProvisioningFailure(t *testing.T) {
-	h := newHarness(t)
-	userID := uuid.New()
-	workspaceID := uuid.New()
-
-	h.repo.EXPECT().Onboard(mock.Anything, userID, mock.Anything).
-		Return(domain.OnboardResult{
-			Workspace: domain.Workspace{ID: workspaceID, Name: "Toko"},
-			Teams:     []domain.Team{{ID: uuid.New(), Name: "Tim Bolu", Kind: "bolu"}},
-			Created:   true,
-		}, nil).Once()
-	h.prov.EXPECT().Provision(mock.Anything, mock.Anything, mock.Anything).
-		Return(errors.New("template copy failed")).Once()
-
-	_, err := h.service.Onboard(context.Background(), userID, domain.OnboardRequest{Name: "Toko"})
-	require.ErrorContains(t, err, "provision templates")
 }

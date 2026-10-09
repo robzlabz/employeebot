@@ -3,6 +3,7 @@ package container
 import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	agentrepo "github.com/robzlabz/employeebot/apps/backend/internal/modules/agent/repository"
 	authrepo "github.com/robzlabz/employeebot/apps/backend/internal/modules/auth/repository"
 	healthrepo "github.com/robzlabz/employeebot/apps/backend/internal/modules/health/repository"
 	workspacerepo "github.com/robzlabz/employeebot/apps/backend/internal/modules/workspace/repository"
@@ -15,6 +16,7 @@ type Repositories struct {
 	Health    *healthrepo.Repository
 	Auth      *authrepo.Repository
 	Workspace *workspacerepo.Repository
+	Agent     *agentrepo.Repository
 }
 
 // newRepositories builds every repository. When there is no pool the
@@ -32,9 +34,14 @@ func newRepositories(pool *database.Pool) *Repositories {
 		repositories.Auth = authrepo.New(pgxPool)
 	}
 	if pool != nil {
-		// The workspace repository needs the scoped helpers, so it takes the
-		// pool wrapper rather than the raw connection.
-		repositories.Workspace = workspacerepo.New(pool)
+		// The agent repository needs the scoped helpers, so it takes the pool
+		// wrapper rather than the raw connection.
+		repositories.Agent = agentrepo.New(pool)
+
+		// The workspace repository is handed the agent repository as its
+		// provisioner: onboarding copies the Bolu templates inside its own
+		// transaction, and this is the only place that knows both modules.
+		repositories.Workspace = workspacerepo.New(pool, repositories.Agent)
 	}
 	return repositories
 }

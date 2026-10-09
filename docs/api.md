@@ -16,7 +16,7 @@ Base URL: `{API_URL}/api`. Every response uses the envelope
 | `POST /auth/password/forgot` | — | `{email}` | `200` always | — |
 | `POST /auth/password/reset` | — | `{token, password}` | `200` | `400` token invalid / weak password |
 | `GET /auth/google/start` | — | — | `302` to Google | `503` not configured |
-| `GET /auth/google/callback` | — | `?code&state` | `302` to `{FRONTEND_URL}/masuk\|onboarding` | redirects with `?google_error=1` |
+| `GET /auth/google/callback` | — | `?code&state` | `302` to `{FRONTEND_URL}/login\|onboarding` | redirects with `?google_error=1` |
 | `GET /auth/me` | bearer | — | `200` account | `401` |
 
 **Session payload**
@@ -75,6 +75,57 @@ must be a UUID, and the caller must be a member, otherwise the answer is `403`.
 | Remove the last owner | ❌ | ❌ | ❌ |
 | Remove yourself | ❌ | ❌ | ❌ |
 
+## Agent registry (EPIC 3)
+
+Every workspace starts with the six Bolu copied from the seeded templates, in
+**Tim Bolu**. Tim Hore starts empty and is filled by the user.
+
+| Endpoint | Auth | Role | Notes |
+| --- | --- | --- | --- |
+| `GET /teams` | bearer + tenant | any | Tim Bolu and Tim Hore with their Bolu |
+| `GET /agents` | bearer + tenant | any | Flat registry list |
+| `GET /agents/templates` | bearer | any | The six seeded profiles |
+| `GET /agents/tool-catalog` | bearer | any | Every known tool with its label |
+| `GET /agents/integrations` | bearer + tenant | any | The workspace's connected apps |
+| `GET /agents/:id` | bearer + tenant | any | One Bolu with its derived status and the reason |
+| `POST /agents` | bearer + tenant | owner, admin | `{team_id, name?, template_key?, copy_from?, persona?, role?}` |
+| `PATCH /agents/:id` | bearer + tenant | owner, admin | Profile: name, role, persona, tone, shape, color, tools, default_model |
+| `PATCH /agents/:id/status` | bearer + tenant | owner, admin | `{status: "active" \| "resting"}` |
+| `DELETE /agents/:id` | bearer + tenant | owner, admin | Soft delete; refused while the Bolu has a running task |
+| `GET /agents/:id/grants` | bearer + tenant | any | The integrations this Bolu may use |
+| `PUT /agents/:id/grants` | bearer + tenant | owner, admin | `{integration_id, permission: "read" \| "read_write"}` |
+| `DELETE /agents/:id/grants/:integrationID` | bearer + tenant | owner, admin | Revoke |
+| `GET /agents/:id/tools` | bearer + tenant | any | The effective tool list |
+
+### Display status is derived, never stored
+
+Only the rest switch is a column (`agents.status`: `active` | `resting`). The
+status the UI shows is computed from the tasks and drafts that reference the
+Bolu:
+
+| Display | Condition |
+| --- | --- |
+| `working` | at least one task is `queued` or `running` |
+| `waiting` | no task in flight, but a draft is `pending` |
+| `idle` | nothing in flight, nothing waiting, switch on |
+| `resting` | the switch is off (outranks everything else) |
+
+A resting Bolu never accepts new tasks; the ones already running are left to
+finish.
+
+### Tool labels decide approval
+
+`tool_catalog` labels every tool `read`, `write_internal`, or `write_external`.
+The effective tool list is the intersection of what the Bolu asks for and the
+integrations it was granted:
+
+- no grant → no tools at all for that integration;
+- a `read` grant → only the tools labelled `read`;
+- a `read_write` grant → every tool of that integration.
+
+Revoking a grant removes the tools on the next read, which is what makes the
+guardrail take effect on the next task.
+
 ## Error codes
 
 | Code | Status | Meaning |
@@ -100,3 +151,10 @@ must be a UUID, and the caller must be a member, otherwise the answer is `403`.
 | `too_many_attempts` | 429 | Login throttle |
 | `auth_not_configured` / `workspace_not_configured` | 503 | Module not wired (no database) |
 | `google_not_configured` | 503 | Google client not configured |
+| `agent_not_found` | 404 | No such Bolu in this workspace |
+| `team_not_found` | 404 | No such team in this workspace |
+| `integration_not_found` | 404 | No such integration, or no such grant |
+| `invalid_status` | 400 | Status is not `active` or `resting` |
+| `invalid_permission` | 400 | Permission is not `read` or `read_write` |
+| `agent_busy` | 409 | The Bolu still has a running task |
+| `agent_limit_reached` | 409 | The plan's Bolu allowance is used up |

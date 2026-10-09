@@ -319,6 +319,6 @@ func (c *Container) newApp(cfg *config.Config) *fiber.App {
 		ErrorHandler: errorHandler(c.Logger),
 	})
 	app.Use(requestContextMiddleware(c.Logger))
-	app.Use(corsMiddleware())
+	app.Use(corsMiddleware(cfg.Application.CORSOrigins))
 	return app
 }

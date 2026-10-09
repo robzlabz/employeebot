@@ -74,7 +74,11 @@ func do(t *testing.T, app *fiber.App, method, path, body string, headers map[str
 
 	recorder := httptest.NewRecorder()
 	recorder.Code = resp.StatusCode
-	recorder.HeaderMap = resp.Header
+	for key, values := range resp.Header {
+		for _, value := range values {
+			recorder.Header().Add(key, value)
+		}
+	}
 	if content, err := io.ReadAll(resp.Body); err == nil {
 		recorder.Body.Write(content)
 	}
@@ -309,7 +313,7 @@ func TestGoogleEndpoints(t *testing.T) {
 		app := newTestApp(t, service, false)
 		resp := do(t, app, fiber.MethodGet, apiPrefix+"/auth/google/callback?code=c&state=s", "", nil)
 
-		require.Equal(t, "https://app.example.com/masuk?google=ok", resp.Header().Get(fiber.HeaderLocation))
+		require.Equal(t, "https://app.example.com/login?google=ok", resp.Header().Get(fiber.HeaderLocation))
 	})
 
 	t.Run("callback reports a failure without leaking the reason", func(t *testing.T) {
@@ -321,7 +325,7 @@ func TestGoogleEndpoints(t *testing.T) {
 		resp := do(t, app, fiber.MethodGet, apiPrefix+"/auth/google/callback?code=c&state=bad", "", nil)
 
 		require.Equal(t, fiber.StatusFound, resp.Code)
-		require.Equal(t, "https://app.example.com/masuk?google_error=1", resp.Header().Get(fiber.HeaderLocation))
+		require.Equal(t, "https://app.example.com/login?google_error=1", resp.Header().Get(fiber.HeaderLocation))
 	})
 
 	t.Run("start reports 503 when Google is not configured", func(t *testing.T) {

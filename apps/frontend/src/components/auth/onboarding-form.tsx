@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { Alert, AuthShell, Field, SubmitButton } from "@/components/auth/auth-shell";
@@ -33,7 +33,7 @@ export function OnboardingForm() {
     void (async () => {
       const result = await refreshSession();
       if (!result.ok) {
-        router.replace("/masuk");
+        router.replace("/login");
         return;
       }
       setReady(true);
@@ -63,7 +63,7 @@ export function OnboardingForm() {
       subtitle="Tiga hal singkat, lalu tim Bolu-mu siap bekerja."
       footer={
         <>
-          Sudah punya workspace? <Link href="/masuk">Masuk</Link>
+          Sudah punya workspace? <Link href="/login">Masuk</Link>
         </>
       }
     >
@@ -117,8 +117,9 @@ export function OnboardingForm() {
 }
 
 /** InviteAccept joins the signed-in account to the workspace that invited it. */
-export function InviteAccept({ token }: { token: string | null }) {
+export function InviteAccept() {
   const router = useRouter();
+  const token = useSearchParams().get("token");
 
   const [status, setStatus] = useState<"checking" | "ready" | "joining" | "failed">("checking");
   const [message, setMessage] = useState<string | null>(null);
@@ -173,7 +174,7 @@ export function InviteAccept({ token }: { token: string | null }) {
         <>
           <Alert tone="error">{message ?? "Undangan tidak bisa dipakai."}</Alert>
           <p className="text-sm text-bolu-muted">
-            Minta pengundang mengirim undangan baru, atau <Link href="/masuk">masuk</Link> dengan email yang diundang.
+            Minta pengundang mengirim undangan baru, atau <Link href="/login">masuk</Link> dengan email yang diundang.
           </p>
         </>
       ) : null}

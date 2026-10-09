@@ -1,6 +1,7 @@
 package container
 
 import (
+	agentdomain "github.com/robzlabz/employeebot/apps/backend/internal/modules/agent/domain"
 	authdomain "github.com/robzlabz/employeebot/apps/backend/internal/modules/auth/domain"
 	healthdomain "github.com/robzlabz/employeebot/apps/backend/internal/modules/health/domain"
 	healthservice "github.com/robzlabz/employeebot/apps/backend/internal/modules/health/service"
@@ -17,6 +18,7 @@ type Services struct {
 	// repositories; they stay nil when the database is not configured.
 	Auth      authdomain.Service
 	Workspace workspacedomain.Service
+	Agent     agentdomain.Service
 }
 
 // newServices builds every service. Optional dependencies (Redis today) are

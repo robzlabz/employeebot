@@ -152,7 +152,7 @@ func TestRegister(t *testing.T) {
 
 		h.mailer.EXPECT().Send(mock.Anything, "owner@example.com", mock.Anything, mock.Anything).
 			RunAndReturn(func(_ context.Context, _, _, body string) error {
-				require.Contains(t, body, "https://app.example.com/verifikasi?token=")
+				require.Contains(t, body, "https://app.example.com/verify?token=")
 				require.Contains(t, body, "Tautan berlaku 1 hari")
 				return nil
 			}).Once()
@@ -168,7 +168,7 @@ func TestRegister(t *testing.T) {
 		require.True(t, strings.HasPrefix(storedHash, "$argon2id$"), "the password must be argon2id hashed")
 		require.NotEqual(t, "a-good-password", storedHash)
 		require.NotEmpty(t, tokenHash, "a verification token must be stored")
-		require.NotContains(t, tokenHash, "verifikasi?token=", "only the hash is stored, not the link")
+		require.NotContains(t, tokenHash, "verify?token=", "only the hash is stored, not the link")
 	})
 
 	t.Run("rejects a weak password before touching the database", func(t *testing.T) {
@@ -459,7 +459,7 @@ func TestPasswordReset(t *testing.T) {
 			Return(nil).Once()
 		h.mailer.EXPECT().Send(mock.Anything, "owner@example.com", mock.Anything, mock.Anything).
 			RunAndReturn(func(_ context.Context, _, _, body string) error {
-				require.Contains(t, body, "https://app.example.com/lupa-sandi?token=")
+				require.Contains(t, body, "https://app.example.com/forgot-password?token=")
 				return nil
 			}).Once()
 

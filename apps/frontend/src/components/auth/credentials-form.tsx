@@ -5,20 +5,25 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Alert, AuthShell, Field, GoogleButton, SubmitButton } from "@/components/auth/auth-shell";
+import { useSearchParams } from "next/navigation";
+
 import { googleStartURL, login, register } from "@/lib/api";
 
 /**
  * One page for both entry points, because they share every field and only
  * differ in which endpoint they call and where they land afterwards.
  */
-export function CredentialsForm({ mode }: { mode: "daftar" | "masuk" }) {
+export function CredentialsForm({ mode }: { mode: "signup" | "login" }) {
   const router = useRouter();
-  const isRegister = mode === "daftar";
+  const isRegister = mode === "signup";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const params = useSearchParams();
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(
+    params.get("verified") === "1" ? "Email terverifikasi. Masuk untuk melanjutkan." : null,
+  );
   const [pending, setPending] = useState(false);
 
   async function onSubmit(event: React.FormEvent) {
@@ -37,7 +42,7 @@ export function CredentialsForm({ mode }: { mode: "daftar" | "masuk" }) {
       }
       // The account exists but is not verified yet: the next step is the link
       // that was just emailed.
-      router.push(`/verifikasi?email=${encodeURIComponent(email)}`);
+      router.push(`/verify?email=${encodeURIComponent(email)}`);
       return;
     }
 
@@ -66,11 +71,11 @@ export function CredentialsForm({ mode }: { mode: "daftar" | "masuk" }) {
       footer={
         isRegister ? (
           <>
-            Sudah punya akun? <Link href="/masuk">Masuk</Link>
+            Sudah punya akun? <Link href="/login">Masuk</Link>
           </>
         ) : (
           <>
-            Belum punya akun? <Link href="/daftar">Daftar</Link>
+            Belum punya akun? <Link href="/signup">Daftar</Link>
           </>
         )
       }
@@ -111,7 +116,7 @@ export function CredentialsForm({ mode }: { mode: "daftar" | "masuk" }) {
 
       {!isRegister ? (
         <p className="mt-4 text-center text-sm">
-          <Link href="/lupa-sandi">Lupa kata sandi?</Link>
+          <Link href="/forgot-password">Lupa kata sandi?</Link>
         </p>
       ) : null}
     </AuthShell>

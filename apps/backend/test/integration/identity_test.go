@@ -215,25 +215,22 @@ func TestSignupFlowThroughTheAPI(t *testing.T) {
 
 	// The account exists but cannot onboard before verifying: that is the
 	// "unverified accounts cannot use verified features" rule.
-	status, payload, body := api.call(t, fiber.MethodPost, "/api/auth/login",
+	loginStatus, loginPayload, loginBody := api.call(t, fiber.MethodPost, "/api/auth/login",
 		`{"email":"`+email+`","password":"`+password+`"}`, nil)
-	require.Equal(t, http.StatusOK, status, body)
-	require.False(t, data(t, payload)["user"].(map[string]any)["email_verified"].(bool))
-
-	status, payload, body = api.call(t, fiber.MethodPost, "/api/auth/login",
-		`{"email":"`+email+`","password":"`+password+`"}`, nil)
-	require.Equal(t, http.StatusOK, status, body)
+	require.Equal(t, http.StatusOK, loginStatus, loginBody)
+	require.False(t, data(t, loginPayload)["user"].(map[string]any)["email_verified"].(bool),
+		"a fresh account is not verified yet")
 
 	// Without a token the protected routes refuse the request.
-	status, _, _ = api.call(t, fiber.MethodGet, "/api/workspaces", "", nil)
-	require.Equal(t, http.StatusUnauthorized, status)
+	anonymousStatus, _, _ := api.call(t, fiber.MethodGet, "/api/workspaces", "", nil)
+	require.Equal(t, http.StatusUnauthorized, anonymousStatus)
 
 	api.verifyEmail(t, token)
 
 	accessToken, refreshCookie := api.login(t, email, password)
 	require.NotEmpty(t, refreshCookie, "the refresh token must arrive in a cookie")
 
-	status, payload, body = api.call(t, fiber.MethodPost, "/api/workspaces/onboard",
+	status, payload, body := api.call(t, fiber.MethodPost, "/api/workspaces/onboard",
 		`{"name":"Toko Sinar","business_field":"Retail","timezone":"Asia/Jakarta"}`, bearer(accessToken))
 	require.Equal(t, http.StatusOK, status, body)
 
@@ -289,12 +286,11 @@ func TestInvitationFlow(t *testing.T) {
 	api.verifyEmail(t, api.register(t, ownerEmail, password))
 	ownerToken, _ := api.login(t, ownerEmail, password)
 
-	status, payload, body := api.call(t, fiber.MethodPost, "/api/workspaces/onboard",
+	status, _, _ := api.call(t, fiber.MethodPost, "/api/workspaces/onboard",
 		`{"name":"Toko Sinar","business_field":"Retail","timezone":"Jakarta"}`, bearer(ownerToken))
 	require.Equal(t, http.StatusBadRequest, status, "an unknown timezone must be rejected")
-	require.NotNil(t, payload)
 
-	status, payload, body = api.call(t, fiber.MethodPost, "/api/workspaces/onboard",
+	status, payload, body := api.call(t, fiber.MethodPost, "/api/workspaces/onboard",
 		`{"name":"Toko Sinar","business_field":"Retail","timezone":"Asia/Jakarta"}`, bearer(ownerToken))
 	require.Equal(t, http.StatusOK, status, body)
 	workspaceID := data(t, payload)["workspace"].(map[string]any)["id"].(string)

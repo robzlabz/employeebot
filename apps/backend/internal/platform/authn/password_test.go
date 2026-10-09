@@ -130,10 +130,13 @@ func TestGenerateToken(t *testing.T) {
 func TestHashTokenIsStable(t *testing.T) {
 	const raw = "a-token"
 
-	if HashToken(raw) != HashToken(raw) {
+	// HashToken is a pure function: the same input always produces the same
+	// digest, which is what makes a stored hash lookup work.
+	first := HashToken(raw)
+	if first != HashToken(raw) {
 		t.Fatal("HashToken must be deterministic")
 	}
-	if HashToken(raw) == HashToken(raw+"x") {
+	if first == HashToken(raw+"x") {
 		t.Fatal("different tokens must hash differently")
 	}
 	if strings.Contains(HashToken(raw), raw) {

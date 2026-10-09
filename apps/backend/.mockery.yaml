@@ -22,6 +22,11 @@ packages:
       LoginThrottle:
       Passwords:
       Tokens:
+  github.com/robzlabz/employeebot/apps/backend/internal/modules/agent/domain:
+    interfaces:
+      Repository:
+      Service:
+      PlanLimits:
   github.com/robzlabz/employeebot/apps/backend/internal/modules/workspace/domain:
     interfaces:
       Repository:

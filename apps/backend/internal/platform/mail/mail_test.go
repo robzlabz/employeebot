@@ -15,7 +15,7 @@ func TestLogSenderReportsTheMessage(t *testing.T) {
 	err := sender.Send(context.Background(), Message{
 		To:      "owner@example.com",
 		Subject: "Verifikasi email Bolu",
-		Text:    "https://app.example.com/verifikasi?token=abc",
+		Text:    "https://app.example.com/verify?token=abc",
 	})
 	if err != nil {
 		t.Fatalf("send: %v", err)

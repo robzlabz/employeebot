@@ -4,6 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/zap"
 
+	agenthandler "github.com/robzlabz/employeebot/apps/backend/internal/modules/agent/handler"
 	authhandler "github.com/robzlabz/employeebot/apps/backend/internal/modules/auth/handler"
 	healthhandler "github.com/robzlabz/employeebot/apps/backend/internal/modules/health/handler"
 	"github.com/robzlabz/employeebot/apps/backend/internal/modules/workspace/domain"
@@ -19,6 +20,7 @@ type Handlers struct {
 	Health    *healthhandler.Handler
 	Auth      *authhandler.Handler
 	Workspace *workspacehandler.Handler
+	Agent     *agenthandler.Handler
 }
 
 // newHandlers builds every handler from the service set. Handlers receive the
@@ -42,6 +44,9 @@ func newHandlers(services *Services, log *zap.Logger, cfg *config.Config) *Handl
 	if services.Workspace != nil {
 		handlers.Workspace = workspacehandler.New(services.Workspace, log)
 	}
+	if services.Agent != nil {
+		handlers.Agent = agenthandler.New(services.Agent, log)
+	}
 
 	return handlers
 }
@@ -60,8 +65,11 @@ func (c *Container) registerRoutes() {
 
 	if c.Handlers.Auth == nil {
 		// Without a database the auth routes still exist, but they report that
-		// the feature is unavailable instead of returning a confusing 404.
+		// the feature is unavailable instead of returning a confusing 404. The
+		// registry fallbacks below are registered for the same reason, so this
+		// branch falls through instead of returning.
 		api.All("/auth/*", unavailable("authentication is not configured", "auth_not_configured"))
+		c.registerUnavailableModules(api)
 		return
 	}
 	authhandler.Routes(api, c.Handlers.Auth)
@@ -92,6 +100,38 @@ func (c *Container) registerRoutes() {
 	// Workspace settings are owner-only.
 	owners := api.Group("", c.requireUser(), c.requireTenant(), requireRole(domain.RoleOwner))
 	workspacehandler.OwnerRoutes(owners, c.Handlers.Workspace)
+
+	if c.Handlers.Agent == nil {
+		registerAgentFallback(tenant)
+		return
+	}
+
+	// The registry: everyone in the workspace may read it.
+	agenthandler.Routes(tenant, c.Handlers.Agent)
+
+	// Changing the registry needs a managing role.
+	registry := api.Group("", c.requireUser(), c.requireTenant(), requireRole(domain.RoleOwner, domain.RoleAdmin))
+	agenthandler.ManagerRoutes(registry, c.Handlers.Agent)
+}
+
+// registerUnavailableModules registers the fallbacks for the modules that are
+// not configured in this deployment, so every documented route exists and
+// answers 503 rather than 404.
+func (c *Container) registerUnavailableModules(api fiber.Router) {
+	if c.Handlers.Workspace == nil {
+		api.All("/workspaces*", unavailable("workspaces are not configured", "workspace_not_configured"))
+		api.All("/invitations*", unavailable("workspaces are not configured", "workspace_not_configured"))
+	}
+	if c.Handlers.Agent == nil {
+		registerAgentFallback(api)
+	}
+}
+
+// registerAgentFallback answers 503 for the registry routes.
+func registerAgentFallback(router fiber.Router) {
+	message := "the agent registry is not configured"
+	router.All("/agents*", unavailable(message, "agent_not_configured"))
+	router.All("/teams*", unavailable(message, "agent_not_configured"))
 }
 
 // cookiePath scopes the refresh cookie to the auth endpoints, so it is not sent
