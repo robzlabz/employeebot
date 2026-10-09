@@ -1,7 +1,28 @@
+# Local development stack: Postgres (with pgvector), Redis, Temporal and its UI,
+# the migration step, and the three backend processes.
+#
+# Migrations run as their own one-shot service before the API starts, which is
+# the same order the deployment pipeline uses.
+
+name: timbolu
+
+x-backend-env: &backend-env
+  ENVIRONMENT: local
+  DATABASE_URL: "postgres://${POSTGRES_USER:-employeebot}:${POSTGRES_PASSWORD:-employeebot_secret}@postgres:5432/${POSTGRES_DB:-employeebot}?sslmode=disable"
+  REDIS_URL: "redis://redis:6379/0"
+  TEMPORAL_HOST_PORT: "temporal:7233"
+  TEMPORAL_NAMESPACE: "default"
+  TEMPORAL_TASK_QUEUE_AGENT: "bolu-agent"
+  TEMPORAL_TASK_QUEUE_INTEGRATION: "bolu-integration"
+  JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-in-production}
+  LOG_LEVEL: ${LOG_LEVEL:-debug}
+  LOG_FORMAT: ${LOG_FORMAT:-console}
+
 services:
   postgres:
-    image: postgres:16-alpine
-    container_name: employeebot-postgres
+    # pgvector ships in this image, which memory and knowledge search require.
+    image: pgvector/pgvector:pg16
+    container_name: bolu-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-employeebot}
@@ -17,28 +38,140 @@ services:
       timeout: 5s
       retries: 10
 
-  backend:
-    build:
-      context: ./apps/backend
-      dockerfile: Dockerfile
-    container_name: employeebot-backend
+  redis:
+    image: redis:7-alpine
+    container_name: bolu-redis
     restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
     ports:
-      - "${BACKEND_PORT:-8080}:8080"
-    environment:
-      ENVIRONMENT: local
-      HTTP_ADDRESS: ":8080"
-      DATABASE_URL: "postgres://${POSTGRES_USER:-employeebot}:${POSTGRES_PASSWORD:-employeebot_secret}@postgres:5432/${POSTGRES_DB:-employeebot}?sslmode=disable"
-      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-in-production}
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  temporal:
+    # Self-hosted for local development; staging and production use Temporal
+    # Cloud in Singapore (see docs/adr/0001-temporal-dan-region.md).
+    image: temporalio/auto-setup:1.26.2
+    container_name: bolu-temporal
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-employeebot}
+      POSTGRES_PWD: ${POSTGRES_PASSWORD:-employeebot_secret}
+      POSTGRES_SEEDS: postgres
+      # auto-setup creates this namespace during provisioning; the API and the
+      # workers connect to it.
+      DEFAULT_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
+    ports:
+      - "${TEMPORAL_PORT:-7233}:7233"
+    healthcheck:
+      test: ["CMD", "tctl", "--address", "temporal:7233", "cluster", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  temporal-ui:
+    image: temporalio/ui:2.32.0
+    container_name: bolu-temporal-ui
+    restart: unless-stopped
+    depends_on:
+      temporal:
+        condition: service_started
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_CORS_ORIGINS: http://localhost:3000
+    ports:
+      - "${TEMPORAL_UI_PORT:-8233}:8080"
+
+  migrate:
+    # One-shot: applies every migration, then exits. api and the workers wait
+    # for it to complete, so a schema change is never half applied.
+    image: migrate/migrate:v4.18.3
+    container_name: bolu-migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./apps/backend/migrations:/migrations:ro
+    command:
+      - "-path=/migrations"
+      - "-database=postgres://${POSTGRES_USER:-employeebot}:${POSTGRES_PASSWORD:-employeebot_secret}@postgres:5432/${POSTGRES_DB:-employeebot}?sslmode=disable"
+      - "up"
+    restart: "no"
+
+  api:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+      args:
+        BINARY: api
+    container_name: bolu-api
+    restart: unless-stopped
+    environment:
+      <<: *backend-env
+      HTTP_ADDRESS: ":8080"
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  agent-worker:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+      args:
+        BINARY: agent-worker
+    container_name: bolu-agent-worker
+    restart: unless-stopped
+    environment: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  integration-worker:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+      args:
+        BINARY: integration-worker
+    container_name: bolu-integration-worker
+    restart: unless-stopped
+    environment: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
   frontend:
     build:
       context: ./apps/frontend
       dockerfile: Dockerfile
-    container_name: employeebot-frontend
+    container_name: bolu-frontend
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
@@ -50,7 +183,8 @@ services:
       - /app/node_modules
       - /app/.next
     depends_on:
-      - backend
+      api:
+        condition: service_started
 
 volumes:
   postgres_data:

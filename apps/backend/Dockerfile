@@ -1,5 +1,12 @@
-# Build
-FROM golang:1.24-alpine AS builder
+# syntax=docker/dockerfile:1
+#
+# One Dockerfile builds the three backend images (api, agent-worker,
+# integration-worker). The BINARY build argument selects which cmd/ package is
+# compiled, so every image carries only the binary it runs.
+
+FROM golang:1.26-alpine AS builder
+
+ARG BINARY=api
 
 WORKDIR /src
 
@@ -10,19 +17,28 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/server .
 
-# Runtime
-FROM alpine:3.21
+# CGO is disabled so the binary is static and runs on the slim runtime image.
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/app ./cmd/${BINARY}
+
+FROM alpine:3.22
+
+ARG BINARY=api
 
 WORKDIR /app
 
-RUN apk add --no-cache ca-certificates tzdata
+RUN apk add --no-cache ca-certificates tzdata && \
+    addgroup -S bolu && adduser -S -G bolu bolu
 
-COPY --from=builder /out/server ./server
-COPY --from=builder /src/config ./config
+COPY --from=builder /out/app ./app
+# The non-local YAML defaults ship with the image; every secret and endpoint is
+# supplied through the environment (see .env.example).
+COPY --from=builder /src/internal/platform/config ./internal/platform/config
 
-EXPOSE 8080
 ENV ENVIRONMENT=production
 
-CMD ["./server", "http"]
+USER bolu
+
+EXPOSE 8080
+
+CMD ["./app"]

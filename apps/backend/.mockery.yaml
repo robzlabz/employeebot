@@ -1,0 +1,13 @@
+# Mockery generates the mocks used by service unit tests from the domain
+# interfaces. Generated mocks live next to the interface (domain/mocks) and are
+# excluded from coverage and from the archcheck rules.
+with-expecter: true
+dir: "{{.InterfaceDir}}/mocks"
+outpkg: "mocks"
+mockname: "{{.InterfaceName}}"
+packages:
+  github.com/robzlabz/employeebot/apps/backend/internal/modules/health/domain:
+    interfaces:
+      Repository:
+      Checker:
+      Service:

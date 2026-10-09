@@ -1,0 +1,314 @@
+// Package engine enforces the dependency rules from the architecture
+// document: the layer boundaries of every module, the ban on cross-module
+// repository/handler/service imports, the purity of domain packages, and the
+// rule that platform holds infrastructure without business logic.
+//
+// It is run by `make archcheck` and by CI, which fails the pull request on any
+// violation.
+package engine
+
+import (
+	"fmt"
+	"path"
+	"sort"
+	"strings"
+)
+
+// Layer names inside a module.
+const (
+	LayerDomain     = "domain"
+	LayerRepository = "repository"
+	LayerService    = "service"
+	LayerHandler    = "handler"
+)
+
+// Violation is one broken rule.
+type Violation struct {
+	File    string
+	Line    int
+	Package string
+	Import  string
+	Rule    string
+	Message string
+}
+
+// String renders a violation as a compiler-style line so CI output points at
+// the offending file.
+func (v Violation) String() string {
+	return fmt.Sprintf("%s:%d: [%s] %s imports %s: %s", v.File, v.Line, v.Rule, v.Package, v.Import, v.Message)
+}
+
+// Import is a single import statement of a package.
+type Import struct {
+	Path string
+	File string
+	Line int
+}
+
+// Package is one Go package of the module.
+type Package struct {
+	// ImportPath is the full import path, e.g.
+	// github.com/robzlabz/employeebot/apps/backend/internal/modules/health/domain
+	ImportPath string
+	// Rel is the path relative to the module root, e.g. internal/modules/health/domain
+	Rel string
+	// Imports are the direct imports of the package.
+	Imports []Import
+}
+
+// location describes where a package sits in the layout.
+type location struct {
+	kind       string // module | platform | container | cmd | tools | other
+	module     string // module name, when kind == module
+	layer      string // domain | repository | service | handler, when kind == module
+	platform   string // platform sub-package, when kind == platform
+	isInternal bool
+}
+
+// Check reports every dependency-rule violation in pkgs. The module prefix is
+// the import path of the Go module under check.
+func Check(modulePrefix string, pkgs []Package) []Violation {
+	var violations []Violation
+
+	for _, pkg := range pkgs {
+		from := locate(modulePrefix, pkg.Rel)
+		if from.kind == "other" || from.kind == "tools" || from.kind == "generated" {
+			continue
+		}
+
+		for _, imp := range pkg.Imports {
+			to, isInternalImport := locateImport(modulePrefix, imp.Path)
+
+			if isInternalImport {
+				if v, ok := checkInternal(from, to, pkg, imp); ok {
+					violations = append(violations, v)
+				}
+				continue
+			}
+
+			if v, ok := checkExternal(from, pkg, imp); ok {
+				violations = append(violations, v)
+			}
+		}
+	}
+
+	sort.Slice(violations, func(i, j int) bool {
+		if violations[i].File != violations[j].File {
+			return violations[i].File < violations[j].File
+		}
+		return violations[i].Line < violations[j].Line
+	})
+
+	return violations
+}
+
+func checkInternal(from, to location, pkg Package, imp Import) (Violation, bool) {
+	violation := Violation{
+		File:    imp.File,
+		Line:    imp.Line,
+		Package: pkg.Rel,
+		Import:  imp.Path,
+	}
+
+	switch from.kind {
+	case "module":
+		switch to.kind {
+		case "module":
+			if to.module == from.module {
+				// Within a module, only the layer order domain ← repository ←
+				// service ← handler is allowed, and handler never touches
+				// repository directly.
+				if from.layer == LayerHandler && to.layer == LayerRepository {
+					violation.Rule = "handler-no-repository"
+					violation.Message = "handler must call the service interface, never a repository"
+					return violation, true
+				}
+				if from.layer == LayerDomain && to.layer != LayerDomain {
+					violation.Rule = "domain-isolated"
+					violation.Message = "domain must not import another layer of its own module"
+					return violation, true
+				}
+				return Violation{}, false
+			}
+
+			// Cross-module: only domain contracts may be shared.
+			if to.layer != LayerDomain {
+				violation.Rule = "cross-module-boundary"
+				violation.Message = "modules may only import another module's domain package"
+				return violation, true
+			}
+			return Violation{}, false
+
+		case "platform":
+			return checkModuleToPlatform(from, to, violation)
+
+		case "container":
+			violation.Rule = "no-container-import"
+			violation.Message = "the container wires modules; modules never import it"
+			return violation, true
+		}
+
+	case "platform":
+		if to.kind == "module" {
+			violation.Rule = "platform-has-no-business-logic"
+			violation.Message = "platform must not import a business module"
+			return violation, true
+		}
+		if to.kind == "container" {
+			violation.Rule = "no-container-import"
+			violation.Message = "platform must not import the container"
+			return violation, true
+		}
+
+	case "cmd":
+		if to.kind == "module" {
+			violation.Rule = "cmd-through-container"
+			violation.Message = "cmd must reach modules through the container"
+			return violation, true
+		}
+	}
+
+	return Violation{}, false
+}
+
+// checkModuleToPlatform limits which platform packages a layer may use.
+func checkModuleToPlatform(from, to location, violation Violation) (Violation, bool) {
+	allowed := map[string]map[string]bool{
+		LayerDomain:     {},
+		LayerRepository: {"database": true, "redis": true},
+		LayerService:    {"logger": true, "config": true},
+		LayerHandler:    {"logger": true, "middleware": true, "response": true},
+	}
+
+	if allowed[from.layer][to.platform] {
+		return Violation{}, false
+	}
+
+	violation.Rule = "layer-platform-access"
+	violation.Message = fmt.Sprintf("%s may not import platform/%s", from.layer, to.platform)
+	return violation, true
+}
+
+// checkExternal forbids third-party imports in the innermost layers. Standard
+// library packages (no dot in the first path segment) are always allowed.
+func checkExternal(from location, pkg Package, imp Import) (Violation, bool) {
+	if from.kind != "module" || isStandardLibrary(imp.Path) {
+		return Violation{}, false
+	}
+
+	violation := Violation{
+		File:    imp.File,
+		Line:    imp.Line,
+		Package: pkg.Rel,
+		Import:  imp.Path,
+	}
+
+	switch from.layer {
+	case LayerDomain:
+		violation.Rule = "domain-pure"
+		violation.Message = "domain must not import third-party packages (no Fiber, pgx, Zap, sqlc)"
+		return violation, true
+	case LayerService:
+		// Services may use logging and generic helpers, nothing that binds
+		// them to a transport or a driver.
+		if isForbiddenInService(imp.Path) {
+			violation.Rule = "service-transport-free"
+			violation.Message = "service must not import a transport or database driver"
+			return violation, true
+		}
+	}
+
+	return Violation{}, false
+}
+
+var forbiddenInService = []string{
+	"github.com/gofiber/",
+	"github.com/jackc/pgx/",
+	"github.com/redis/go-redis/",
+	"go.temporal.io/sdk/client",
+	"go.temporal.io/sdk/worker",
+	"database/sql",
+}
+
+func isForbiddenInService(importPath string) bool {
+	for _, prefix := range forbiddenInService {
+		if importPath == prefix || strings.HasPrefix(importPath, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// isStandardLibrary reports whether an import path is a standard library
+// package: standard library paths never contain a dot in their first segment.
+func isStandardLibrary(importPath string) bool {
+	first, _, _ := strings.Cut(importPath, "/")
+	return !strings.Contains(first, ".")
+}
+
+// generatedDirs hold code produced by a generator (sqlc, mockery). Generated
+// packages are excluded from the rules: they are re-created from their source
+// (SQL, interfaces) and never hand-edited.
+var generatedDirs = map[string]bool{"sqlcgen": true, "mocks": true}
+
+// locate maps a module-relative path to its place in the layout.
+func locate(modulePrefix, rel string) location {
+	segments := strings.Split(rel, "/")
+	if len(segments) == 0 {
+		return location{kind: "other"}
+	}
+	for _, segment := range segments {
+		if generatedDirs[segment] {
+			return location{kind: "generated"}
+		}
+	}
+
+	switch segments[0] {
+	case "cmd":
+		return location{kind: "cmd"}
+	case "tools", "migrations":
+		return location{kind: "tools"}
+	case "internal":
+		return locateInternal(segments)
+	default:
+		return location{kind: "other"}
+	}
+}
+
+func locateInternal(segments []string) location {
+	if len(segments) < 2 {
+		return location{kind: "other"}
+	}
+
+	switch segments[1] {
+	case "modules":
+		if len(segments) < 4 {
+			return location{kind: "other"}
+		}
+		return location{
+			kind:       "module",
+			module:     segments[2],
+			layer:      segments[3],
+			isInternal: true,
+		}
+	case "platform":
+		if len(segments) < 3 {
+			return location{kind: "platform"}
+		}
+		return location{kind: "platform", platform: segments[2], isInternal: true}
+	case "container":
+		return location{kind: "container", isInternal: true}
+	default:
+		return location{kind: "other"}
+	}
+}
+
+// locateImport maps an import path to its place in the layout, reporting
+// whether the import points inside this module at all.
+func locateImport(modulePrefix, importPath string) (location, bool) {
+	if !strings.HasPrefix(importPath, modulePrefix+"/") {
+		return location{}, false
+	}
+	rel := strings.TrimPrefix(importPath, modulePrefix+"/")
+	return locate(modulePrefix, path.Clean(rel)), true
+}

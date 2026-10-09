@@ -1,10 +1,10 @@
-# Employee Bot
+# Bolu (Employee Bot)
 
 Bots that do human tasks. Setiap bot punya **komputer virtual** dan **sesi persisten** — bukan sekadar chat.
 
 ## Product vision
 
-Employee Bot adalah platform bot yang mengerjakan pekerjaan manusia. Setiap bot adalah satu karakter bulat yang lucu — dua mata dan satu mulut — dengan komputer sendiri.
+Bolu adalah platform bot yang mengerjakan pekerjaan manusia. Setiap Bolu adalah satu karakter bulat yang lucu — dua mata dan satu mulut — dengan komputer sendiri.
 
 **Core**
 
@@ -12,6 +12,7 @@ Employee Bot adalah platform bot yang mengerjakan pekerjaan manusia. Setiap bot 
 - Satu user bisa punya banyak perusahaan (1 user → many companies).
 - Satu perusahaan bisa punya banyak bot (1 company → many bots), dan **setiap bot = satu komputer**.
 - Bot berkolaborasi dalam grup dan berbagi satu workspace.
+- Manusia memegang pintu keluar: semua aksi ke pihak luar lewat persetujuan (default draf).
 
 **Bot traits**
 
@@ -30,19 +31,17 @@ Indonesia dulu: transfer bank / virtual account. **Tidak ada Stripe.**
 ```
 .
 ├── apps/
-│   ├── backend/     # Go HTTP API — Fiber + sqlx + Postgres, cobra + viper config
-│   └── frontend/    # Next.js (App Router) + TypeScript + Tailwind v4 marketing site
+│   ├── backend/     # Go modular monolith — Fiber, pgx + sqlc, Temporal, Zap
+│   └── frontend/    # Next.js (App Router) + TypeScript + Tailwind v4
+├── docs/
+│   ├── adr/         # architecture decision records
+│   └── testing.md   # test layers and CI gates
 ├── docker-compose.yml
 ├── Makefile
 └── .env.example
 ```
 
-`apps/backend` follows a modular layered layout: `cmd` (cobra commands) →
-`config` (viper YAML + env overrides) → `internal/dependency` (wiring: driver,
-repositories, services, handlers) → `internal/router` → `internal/module/*`
-(domain / repository / service / handler / router per module). Migrations live
-in `apps/backend/db/migrations`. Only the health module and the auth domain
-stub exist today.
+Backend layout, dependency rules, and commands: [`apps/backend/README.md`](apps/backend/README.md).
 
 ## How to run
 
@@ -51,20 +50,22 @@ cp .env.example .env
 make up
 ```
 
-The backend starts even when Postgres is unavailable — it logs a warning and
-serves the health endpoints without a database connection.
+`make up` starts Postgres (with pgvector), Redis, Temporal and its UI, runs the
+migrations, then starts the API, both Temporal workers, and the frontend.
 
-| Service  | URL                            |
-| -------- | ------------------------------ |
-| Frontend | http://localhost:3000          |
-| Backend  | http://localhost:8080/health   |
-| Postgres | `localhost:5432` (`employeebot` / `employeebot_secret` / `employeebot`) |
+| Service      | URL                              |
+| ------------ | -------------------------------- |
+| Frontend     | http://localhost:3000            |
+| Backend      | http://localhost:8080/health     |
+| Readiness    | http://localhost:8080/ready      |
+| Temporal UI  | http://localhost:8233            |
+| Postgres     | `localhost:5432` (`employeebot` / `employeebot_secret` / `employeebot`) |
 
 ### Running without Docker
 
 ```bash
 make frontend   # cd apps/frontend && npm run dev
-make backend    # cd apps/backend && go run . http
+make backend    # cd apps/backend && go run ./cmd/api
 ```
 
 Install frontend dependencies inside `apps/frontend` (`npm ci`) — there is no
@@ -72,32 +73,38 @@ root `package.json`, so `npm install` at the repo root does nothing.
 
 ## Make targets
 
-| Target     | Description                                    |
-| ---------- | ---------------------------------------------- |
-| `up`       | `docker compose up -d --build`                 |
-| `down`     | `docker compose down`                          |
-| `logs`     | `docker compose logs -f`                       |
-| `build`    | `docker compose build`                         |
-| `dev`      | `up` then follow logs                          |
-| `frontend` | Next.js dev server on the host                 |
-| `backend`  | Go HTTP server on the host                     |
-| `migrate`  | Apply DB migrations (stub — golang-migrate TBD) |
-| `help`     | List targets (default target)                  |
+| Target                   | Description                                          |
+| ------------------------ | ---------------------------------------------------- |
+| `up` / `down` / `logs`   | Manage the local stack                               |
+| `frontend` / `backend`   | Run one process on the host                          |
+| `test` / `cover`         | Test suite, and tests plus the 80% coverage gate     |
+| `lint` / `archcheck`     | golangci-lint, and the module dependency rules       |
+| `sqlc` / `mocks`         | Regenerate the query code and the domain mocks       |
+| `migrate-up` / `-down`   | Apply or revert migrations against `$DATABASE_URL`   |
+| `ci`                     | Run the same gates as CI locally                     |
+| `help`                   | List every target                                    |
 
 ## Roadmap
 
-GitHub issues **#1–#11** track the roadmap: auth, multi-company, bots, virtual
-computer, groups, memory, secrets, billing, dashboard, marketing polish,
-realtime room.
+The backlog is tracked as epics and their tasks in GitHub issues: **EPIC 1–14**,
+each epic being a sub-issue tree whose tasks are worked in order. The legacy
+issue set (#1–#11) is mapped onto those epics in comments on each issue.
+
+Decisions that shape the infrastructure live in [`docs/adr`](docs/adr):
+Temporal Cloud vs self-host and the data region are recorded in
+[ADR 0001](docs/adr/0001-temporal-dan-region.md).
 
 ## Stack
 
-- **Backend:** Go 1.24, Fiber v2, sqlx + lib/pq (Postgres 16), cobra, viper.
+- **Backend:** Go 1.26, Fiber v2, pgx + sqlc, golang-migrate, Temporal,
+  Redis, Zap, PostgreSQL 16 + pgvector.
 - **Frontend:** Next.js 16 (App Router) + TypeScript, Tailwind CSS v4, animasi
   murni CSS/SVG — tanpa file gambar, tanpa library animasi.
-- **Local infra:** Docker Compose (`postgres`, `backend`, `frontend`).
+- **Local infra:** Docker Compose (`postgres`, `redis`, `temporal`, `migrate`,
+  `api`, `agent-worker`, `integration-worker`, `frontend`).
 
 Frontend routes today: `/` (hero + 8 bot), `/pricing` (tier placeholder, catatan
 billing transfer bank), `/dashboard` (UI mock tanpa auth: lima view — dasbor,
 rutinitas, kantor, integrasi, pengaturan — plus chat bot dan grup). Belum ada
-auth, integrasi pembayaran, atau koneksi backend.
+auth, integrasi pembayaran, atau koneksi backend — dikerjakan lewat epic di
+GitHub issues.
