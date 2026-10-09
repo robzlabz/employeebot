@@ -43,6 +43,7 @@ func TestRequestContextGeneratesIdentifiers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
+	defer func() { _ = resp.Body.Close() }()
 
 	if got := resp.Header.Get(HeaderRequestID); uuid.Validate(got) != nil {
 		t.Fatalf("response must echo a generated request id, got %q", got)
@@ -86,6 +87,7 @@ func TestRequestContextUsesCallerIdentifiers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
+	defer func() { _ = resp.Body.Close() }()
 
 	body := bodyString(t, resp.Body)
 	for _, want := range []string{requestID, workspaceID, "4bf92f3577b34da6a3ce929d0e0e4736"} {
@@ -113,6 +115,7 @@ func TestRequestContextRejectsMalformedIdentifiers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
+	defer func() { _ = resp.Body.Close() }()
 
 	if body := bodyString(t, resp.Body); !strings.Contains(body, `"workspace_id":""`) {
 		t.Fatalf("expected the malformed workspace id to be dropped, got %s", body)
@@ -135,9 +138,11 @@ func TestRequestContextRedactsSecrets(t *testing.T) {
 	req.Header.Set("X-Api-Key", "super-secret-key")
 	req.Header.Set("Content-Type", "application/json")
 
-	if _, err := app.Test(req); err != nil {
+	resp, err := app.Test(req)
+	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
+	defer func() { _ = resp.Body.Close() }()
 
 	logged := buf.String()
 	for _, secret := range []string{"super-secret-query", "super-secret-header", "super-secret-key"} {
@@ -171,6 +176,8 @@ func TestRequestContextLogsHandlerErrors(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
+	defer func() { _ = resp.Body.Close() }()
+
 	if resp.StatusCode != fiber.StatusTeapot {
 		t.Fatalf("expected 418, got %d", resp.StatusCode)
 	}
@@ -198,6 +205,8 @@ func TestLoggerFallsBackWhenMiddlewareIsAbsent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
+	defer func() { _ = resp.Body.Close() }()
+
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("accessors must work without the middleware, got status %d", resp.StatusCode)
 	}

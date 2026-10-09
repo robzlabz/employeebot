@@ -1,0 +1,33 @@
+# Linter configuration, checked by `make lint` and by CI. The linter set is
+# declared explicitly so a locally installed golangci-lint behaves like the
+# pinned version CI uses (.github/workflows/ci.yml).
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    # Correctness of error handling and interfaces.
+    - bodyclose
+    - errorlint
+    - nilerr
+    - unconvert
+    - wastedassign
+    # Consistency of the code base.
+    - misspell
+    - predeclared
+    - usestdlibvars
+    # Tests must clean up after themselves.
+    - tparallel
+    - thelper
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+issues:
+  # Generated code is re-created from SQL and the domain interfaces, so lint
+  # findings there are not actionable.
+  exclude-dirs:
+    - sqlcgen
+    - mocks

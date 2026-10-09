@@ -10,13 +10,28 @@ merge.
 | --- | --- | --- |
 | Formatting | `gofmt -l ./cmd ./internal ./migrations ./tools ./test` | No unformatted file is merged |
 | Dependency rules | `make archcheck` | Module boundaries (see below) |
-| Lint | `make lint` (`golangci-lint run ./...`) | Static analysis |
+| Lint | `make lint` (`golangci-lint run ./...`) | Static analysis; the linter set lives in `apps/backend/.golangci.yml`, the version is pinned to v2.5.0 in CI |
 | Generated code | `sqlc generate && git diff --exit-code -- internal/modules` | `sqlcgen` matches the migrations and queries |
 | Generated mocks | `mockery --config .mockery.yaml && git diff --exit-code -- internal/modules` | Committed mocks match the domain interfaces |
 | Migrations | `go run ./tools/migrate up`, `down`, `up` | Both directions of every migration work |
 | Tests | `make test` (`go test ./...`) | Unit and integration tests |
 | Race detector | `go test ./... -race` | Data races |
 | Coverage | `make cover` (`scripts/coverage.sh`) | Total coverage ≥ 80% |
+
+## Linting
+
+`apps/backend/.golangci.yml` declares the linter set explicitly so a locally
+installed golangci-lint behaves like CI. CI pins the version
+(`golangci-lint@v2.5.0`); install the same version locally to avoid drift:
+
+```bash
+go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.5.0
+```
+
+Beyond the standard set, the config enables `bodyclose`, `errorlint`, `nilerr`,
+`unconvert`, `wastedassign`, `misspell`, `predeclared`, `usestdlibvars`,
+`tparallel` and `thelper`, and runs `gofmt`/`goimports` as formatters.
+Generated packages (`sqlcgen`, `mocks`) are excluded.
 
 ## Dependency rules (archcheck)
 

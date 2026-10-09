@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"strings"
 
@@ -46,8 +47,10 @@ func loadFromFile(env string) (*Config, error) {
 
 	if err := viper.ReadInConfig(); err != nil {
 		// A missing config file is fine: environment variables can supply
-		// every required value.
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+		// every required value. errors.As rather than a type assertion, so a
+		// wrapped ConfigFileNotFoundError is still recognised.
+		var notFound viper.ConfigFileNotFoundError
+		if !errors.As(err, &notFound) {
 			return nil, err
 		}
 	}

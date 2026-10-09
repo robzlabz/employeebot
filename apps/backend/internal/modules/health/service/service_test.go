@@ -41,11 +41,15 @@ func TestReadiness(t *testing.T) {
 		{
 			name: "every dependency healthy",
 			database: func(t *testing.T) domain.Repository {
+				t.Helper()
+
 				m := mocks.NewRepository(t)
 				m.EXPECT().Ping(mock.Anything).Return(nil).Once()
 				return m
 			},
 			redis: func(t *testing.T) domain.Checker {
+				t.Helper()
+
 				m := mocks.NewChecker(t)
 				m.EXPECT().Ping(mock.Anything).Return(nil).Once()
 				return m
@@ -56,22 +60,31 @@ func TestReadiness(t *testing.T) {
 		{
 			name: "missing redis is reported as not configured, not as a failure",
 			database: func(t *testing.T) domain.Repository {
+				t.Helper()
+
 				m := mocks.NewRepository(t)
 				m.EXPECT().Ping(mock.Anything).Return(nil).Once()
 				return m
 			},
-			redis:      func(t *testing.T) domain.Checker { return nil },
+			redis: func(t *testing.T) domain.Checker {
+				t.Helper()
+				return nil
+			},
 			wantStatus: domain.StatusOK,
 			want:       map[string]string{"database": domain.StatusOK, "redis": domain.StatusNotConfigured},
 		},
 		{
 			name: "database failure makes the process unready",
 			database: func(t *testing.T) domain.Repository {
+				t.Helper()
+
 				m := mocks.NewRepository(t)
 				m.EXPECT().Ping(mock.Anything).Return(dbErr).Once()
 				return m
 			},
 			redis: func(t *testing.T) domain.Checker {
+				t.Helper()
+
 				m := mocks.NewChecker(t)
 				m.EXPECT().Ping(mock.Anything).Return(nil).Once()
 				return m
@@ -82,11 +95,15 @@ func TestReadiness(t *testing.T) {
 		{
 			name: "redis failure makes the process unready",
 			database: func(t *testing.T) domain.Repository {
+				t.Helper()
+
 				m := mocks.NewRepository(t)
 				m.EXPECT().Ping(mock.Anything).Return(nil).Once()
 				return m
 			},
 			redis: func(t *testing.T) domain.Checker {
+				t.Helper()
+
 				m := mocks.NewChecker(t)
 				m.EXPECT().Ping(mock.Anything).Return(redisErr).Once()
 				return m

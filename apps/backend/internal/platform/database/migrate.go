@@ -10,10 +10,7 @@ import (
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/stdlib"
-
-	// database/sql driver used by golang-migrate.
-	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jackc/pgx/v5/stdlib" // init() registers the database/sql driver golang-migrate uses
 
 	"github.com/robzlabz/employeebot/apps/backend/migrations"
 )
