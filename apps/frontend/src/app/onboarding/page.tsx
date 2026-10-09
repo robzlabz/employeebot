@@ -1,0 +1,11 @@
+import type { Metadata } from "next";
+import { OnboardingForm } from "@/components/auth/onboarding-form";
+
+export const metadata: Metadata = {
+  title: "Onboarding",
+  description: "Kenalan singkat sebelum tim Bolu-mu mulai bekerja.",
+};
+
+export default function OnboardingPage() {
+  return <OnboardingForm />;
+}

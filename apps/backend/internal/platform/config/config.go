@@ -11,12 +11,22 @@ type Config struct {
 	Redis       RedisConfig
 	Temporal    TemporalConfig
 	JWT         JWTConfig
+	Auth        AuthConfig
+	Google      GoogleConfig
+	Mail        MailConfig
 	Logging     LoggingConfig
 }
 
 // AppConfig holds application-level settings.
 type AppConfig struct {
 	Environment string `mapstructure:"Environment"`
+	// FrontendURL is the base URL of the web app. It is where verification,
+	// reset, and invitation links point, and where the Google callback sends
+	// the browser back to.
+	FrontendURL string `mapstructure:"FrontendURL" validate:"optional"`
+	// CORSOrigins lists the browser origins allowed to call the API. An empty
+	// list allows any origin, which is only acceptable in local development.
+	CORSOrigins []string `mapstructure:"CORSOrigins" validate:"optional"`
 }
 
 // HttpConfig holds HTTP server settings.
@@ -62,6 +72,50 @@ type TemporalConfig struct {
 type JWTConfig struct {
 	Secret      string `mapstructure:"Secret"`
 	ExpireHours int    `mapstructure:"ExpireHours" validate:"optional"`
+}
+
+// AuthConfig holds the authentication lifetimes, cookie settings, and the login
+// throttle. Lifetimes are expressed in the unit named by the field, which keeps
+// the YAML readable.
+type AuthConfig struct {
+	// AccessTokenMinutes is the lifetime of an access token.
+	AccessTokenMinutes int `mapstructure:"AccessTokenMinutes" validate:"optional"`
+	// RefreshHours is the lifetime of a refresh session.
+	RefreshHours int `mapstructure:"RefreshHours" validate:"optional"`
+	// VerificationHours is the lifetime of an email verification link.
+	VerificationHours int `mapstructure:"VerificationHours" validate:"optional"`
+	// ResetMinutes is the lifetime of a password reset link.
+	ResetMinutes int `mapstructure:"ResetMinutes" validate:"optional"`
+	// StateMinutes is the lifetime of the signed OAuth state.
+	StateMinutes int `mapstructure:"StateMinutes" validate:"optional"`
+	// CookieDomain is optional; empty means the host that served the request.
+	CookieDomain string `mapstructure:"CookieDomain" validate:"optional"`
+	// CookieSecure must be true outside local development: the refresh cookie
+	// must not travel over plain HTTP.
+	CookieSecure bool `mapstructure:"CookieSecure"`
+	// LoginThrottleCapacity is the burst size of the login bucket, and
+	// LoginThrottleRefill the steady rate in attempts per second.
+	LoginThrottleCapacity int     `mapstructure:"LoginThrottleCapacity" validate:"optional"`
+	LoginThrottleRefill   float64 `mapstructure:"LoginThrottleRefill" validate:"optional"`
+}
+
+// GoogleConfig holds the Google OAuth client registration. An empty ClientID
+// disables Google sign-in and the endpoints report it as not configured.
+type GoogleConfig struct {
+	ClientID     string `mapstructure:"ClientID" validate:"optional"`
+	ClientSecret string `mapstructure:"ClientSecret" validate:"optional"`
+	RedirectURL  string `mapstructure:"RedirectURL" validate:"optional"`
+}
+
+// MailConfig selects how transactional email is delivered. Driver is "log"
+// (development) or "smtp" (staging and production).
+type MailConfig struct {
+	Driver   string `mapstructure:"Driver" validate:"optional"`
+	From     string `mapstructure:"From" validate:"optional"`
+	Host     string `mapstructure:"Host" validate:"optional"`
+	Port     int    `mapstructure:"Port" validate:"optional"`
+	Username string `mapstructure:"Username" validate:"optional"`
+	Password string `mapstructure:"Password" validate:"optional"`
 }
 
 // LoggingConfig holds structured logging settings.

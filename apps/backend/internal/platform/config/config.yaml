@@ -2,6 +2,8 @@
 # the environment: staging and production override the values below.
 Application:
   Environment: "production"
+  FrontendURL: ""
+  CORSOrigins: []
 
 Http:
   Address: ":8080"
@@ -31,6 +33,31 @@ Temporal:
 JWT:
   Secret: ""
   ExpireHours: 24
+
+Auth:
+  AccessTokenMinutes: 15
+  RefreshHours: 720
+  VerificationHours: 24
+  ResetMinutes: 60
+  StateMinutes: 10
+  CookieDomain: ""
+  # The refresh cookie must only travel over HTTPS outside local development.
+  CookieSecure: true
+  LoginThrottleCapacity: 5
+  LoginThrottleRefill: 0.2
+
+Google:
+  ClientID: ""
+  ClientSecret: ""
+  RedirectURL: ""
+
+Mail:
+  Driver: "smtp"
+  From: ""
+  Host: ""
+  Port: 587
+  Username: ""
+  Password: ""
 
 Logging:
   Level: "info"

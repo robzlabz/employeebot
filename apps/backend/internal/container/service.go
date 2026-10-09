@@ -1,8 +1,10 @@
 package container
 
 import (
+	authdomain "github.com/robzlabz/employeebot/apps/backend/internal/modules/auth/domain"
 	healthdomain "github.com/robzlabz/employeebot/apps/backend/internal/modules/health/domain"
 	healthservice "github.com/robzlabz/employeebot/apps/backend/internal/modules/health/service"
+	workspacedomain "github.com/robzlabz/employeebot/apps/backend/internal/modules/workspace/domain"
 	"github.com/robzlabz/employeebot/apps/backend/internal/platform/redis"
 )
 
@@ -11,6 +13,10 @@ import (
 // package that knows the concrete implementations.
 type Services struct {
 	Health healthdomain.Service
+	// Auth and Workspace are filled in by openAuth, which needs the
+	// repositories; they stay nil when the database is not configured.
+	Auth      authdomain.Service
+	Workspace workspacedomain.Service
 }
 
 // newServices builds every service. Optional dependencies (Redis today) are

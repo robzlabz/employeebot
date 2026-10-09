@@ -15,6 +15,9 @@ x-backend-env: &backend-env
   TEMPORAL_TASK_QUEUE_AGENT: "bolu-agent"
   TEMPORAL_TASK_QUEUE_INTEGRATION: "bolu-integration"
   JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-in-production}
+  # Base URL of the web app: where verification, reset, and invitation links
+  # point, and where the Google callback returns the browser.
+  FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
   LOG_LEVEL: ${LOG_LEVEL:-debug}
   LOG_FORMAT: ${LOG_FORMAT:-console}
 
@@ -171,17 +174,14 @@ services:
     build:
       context: ./apps/frontend
       dockerfile: Dockerfile
+      args:
+        # NEXT_PUBLIC_* values are inlined into the client bundle at build time,
+        # so the API URL has to be a build argument, not a runtime variable.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
     container_name: bolu-frontend
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
-    environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
-      WATCHPACK_POLLING: "true"
-    volumes:
-      - ./apps/frontend:/app
-      - /app/node_modules
-      - /app/.next
     depends_on:
       api:
         condition: service_started

@@ -205,9 +205,16 @@ func checkExternal(from location, pkg Package, imp Import) (Violation, bool) {
 
 	switch from.layer {
 	case LayerDomain:
-		violation.Rule = "domain-pure"
-		violation.Message = "domain must not import third-party packages (no Fiber, pgx, Zap, sqlc)"
-		return violation, true
+		// The architecture document requires domain to be free of any internal
+		// package and of the frameworks and drivers it names (Fiber, pgx, Zap,
+		// sqlc). Plain value types such as a UUID library are allowed: entities
+		// need an identifier type.
+		if isInfrastructureLibrary(imp.Path) {
+			violation.Rule = "domain-pure"
+			violation.Message = "domain must not import a framework or driver (Fiber, pgx, Redis, Temporal, Zap, sqlc)"
+			return violation, true
+		}
+		return Violation{}, false
 	case LayerService:
 		// Services may use logging and generic helpers, nothing that binds
 		// them to a transport or a driver.
@@ -219,6 +226,29 @@ func checkExternal(from location, pkg Package, imp Import) (Violation, bool) {
 	}
 
 	return Violation{}, false
+}
+
+// infrastructureLibraries are the frameworks, drivers, and generated clients a
+// domain package must never depend on.
+var infrastructureLibraries = []string{
+	"github.com/gofiber/",
+	"github.com/jackc/pgx/",
+	"github.com/redis/go-redis/",
+	"go.temporal.io/",
+	"go.uber.org/zap",
+	"database/sql",
+	"net/http",
+	"net/rpc",
+	"/sqlcgen",
+}
+
+func isInfrastructureLibrary(importPath string) bool {
+	for _, prefix := range infrastructureLibraries {
+		if importPath == prefix || strings.HasPrefix(importPath, prefix) || strings.HasSuffix(importPath, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 var forbiddenInService = []string{
@@ -246,9 +276,10 @@ func isStandardLibrary(importPath string) bool {
 	return !strings.Contains(first, ".")
 }
 
-// generatedDirs hold code produced by a generator (sqlc, mockery). Generated
-// packages are excluded from the rules: they are re-created from their source
-// (SQL, interfaces) and never hand-edited.
+// generatedDirs hold code produced by a generator (sqlc, mockery). Rules are
+// not applied *to* a generated package — it is re-created from its source and
+// never hand-edited — but importing one counts as importing the layer it
+// belongs to, so `domain` importing `repository/sqlcgen` is still a violation.
 var generatedDirs = map[string]bool{"sqlcgen": true, "mocks": true}
 
 // locate maps a module-relative path to its place in the layout.
@@ -310,5 +341,20 @@ func locateImport(modulePrefix, importPath string) (location, bool) {
 		return location{}, false
 	}
 	rel := strings.TrimPrefix(importPath, modulePrefix+"/")
-	return locate(modulePrefix, path.Clean(rel)), true
+	return locateTarget(path.Clean(rel)), true
+}
+
+// locateTarget maps an import target to the layer it belongs to. A generated
+// package resolves to its parent layer, so importing generated query code counts
+// as importing the repository.
+func locateTarget(rel string) location {
+	segments := strings.Split(rel, "/")
+	trimmed := make([]string, 0, len(segments))
+	for _, segment := range segments {
+		if generatedDirs[segment] {
+			continue
+		}
+		trimmed = append(trimmed, segment)
+	}
+	return locate("", strings.Join(trimmed, "/"))
 }

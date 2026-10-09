@@ -42,6 +42,45 @@ make mocks           # regenerate the domain mocks
 make migrate-up      # apply migrations to $DATABASE_URL
 ```
 
+## Modules
+
+| Module | Endpoints | Notes |
+| --- | --- | --- |
+| `health` | `GET /health`, `GET /ready` | Liveness never touches a dependency; readiness reports each one |
+| `auth` | `/api/auth/*` | Register, verify, login, refresh, logout, password reset, Google |
+| `workspace` | `/api/workspaces/*`, `/api/invitations/accept` | Onboarding, members, roles, invitations |
+
+### Authentication
+
+- Passwords are hashed with **argon2id** (64 MiB, 3 iterations, 2 lanes).
+- The **access token** is a short-lived JWT (HS256) returned in the body; the
+  client keeps it in memory. It carries the session id, so signing out or
+  resetting a password invalidates it immediately.
+- The **refresh token** lives in an `httpOnly` cookie scoped to `/api/auth`, is
+  stored only as a SHA-256 hash, and is **rotated** on every refresh.
+- Verification, reset, and invitation links are one-time tokens, also stored as
+  hashes, with `used_at` enforcing single use.
+- Repeated sign-in attempts are throttled with a Redis token bucket per address
+  and per IP. A Redis outage degrades to no throttling rather than locking
+  everyone out.
+
+### Tenancy
+
+Three middlewares guard the routes, in this order:
+
+1. `requireUser` — verifies the access token and its session.
+2. `requireVerified` — rejects an account whose email is not confirmed. It
+   guards the routes that create or join tenancy.
+3. `requireTenant` — reads the active workspace from `X-Workspace-Id` (or
+   `?workspace_id=`), confirms the caller's membership, and stores the scope the
+   handlers query with. A non-member gets **403**.
+
+Every tenant query runs through `database.InScope`, which sets `app.user_id` and
+`app.workspace_id` for the transaction. Row Level Security then filters every
+statement, so a query that forgets `WHERE workspace_id = ...` still cannot read
+another workspace. `workspaces` carries `owner_user_id` so a workspace can be
+read back inside the transaction that creates it.
+
 ## Configuration
 
 Configuration is read from `internal/platform/config/config.yaml` (or
@@ -55,5 +94,12 @@ developer can run one process at a time. `/health` reports liveness and never
 touches a dependency; `/ready` reports each dependency and answers 503 when a
 configured one is down.
 
+Environment variables worth knowing: `JWT_SECRET` (signs access tokens **and**
+the OAuth state), `FRONTEND_URL` (the base of the emailed links and the Google
+callback target), `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`GOOGLE_REDIRECT_URL`
+(Google sign-in stays disabled while they are empty), and `MAIL_DRIVER` (`log`
+prints the links, `smtp` sends them).
+
 Deployment and region decisions: `docs/adr/0001-temporal-dan-region.md`.
 Test strategy and gates: `docs/testing.md`.
+API contract: `docs/api.md`.

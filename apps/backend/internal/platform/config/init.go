@@ -79,6 +79,15 @@ func loadFromEnv(cfg *Config) {
 		"JWT_SECRET":                      &cfg.JWT.Secret,
 		"LOG_LEVEL":                       &cfg.Logging.Level,
 		"LOG_FORMAT":                      &cfg.Logging.Format,
+		"FRONTEND_URL":                    &cfg.Application.FrontendURL,
+		"GOOGLE_CLIENT_ID":                &cfg.Google.ClientID,
+		"GOOGLE_CLIENT_SECRET":            &cfg.Google.ClientSecret,
+		"GOOGLE_REDIRECT_URL":             &cfg.Google.RedirectURL,
+		"MAIL_DRIVER":                     &cfg.Mail.Driver,
+		"MAIL_FROM":                       &cfg.Mail.From,
+		"MAIL_HOST":                       &cfg.Mail.Host,
+		"MAIL_USERNAME":                   &cfg.Mail.Username,
+		"MAIL_PASSWORD":                   &cfg.Mail.Password,
 	}
 	for key, target := range overrides {
 		if v := os.Getenv(key); v != "" {

@@ -20,6 +20,9 @@ import (
 	"github.com/robzlabz/employeebot/apps/backend/internal/platform/database"
 )
 
+// latestMigration is the version of the newest migration file.
+const latestMigration = 2
+
 const (
 	pgUser     = "postgres"
 	pgPassword = "postgres"
@@ -74,8 +77,7 @@ func postgresDSN(t *testing.T) string {
 		pgUser, pgPassword, host, port.Port(), pgDatabase)
 }
 
-// migratedDatabase returns a DSN whose schema is up to date and whose app role
-// exists.
+// migratedDatabase returns a DSN whose schema is up to date.
 func migratedDatabase(t *testing.T) string {
 	t.Helper()
 
@@ -85,6 +87,20 @@ func migratedDatabase(t *testing.T) string {
 	require.NoError(t, database.MigrateUp(ctx, dsn))
 
 	return dsn
+}
+
+// appDatabase migrates a fresh database and returns a DSN that connects as the
+// non-superuser application role.
+//
+// Tests that assert Row Level Security must use this: a superuser bypasses every
+// policy, so testing as one proves nothing.
+func appDatabase(t *testing.T) string {
+	t.Helper()
+
+	dsn := migratedDatabase(t)
+	require.NoError(t, createAppRole(t.Context(), dsn))
+
+	return appDSN(t, dsn)
 }
 
 // TestMigrationsRunBothWays is the migration gate: CI runs the same cycle, so a
@@ -101,7 +117,10 @@ func TestMigrationsRunBothWays(t *testing.T) {
 	require.NoError(t, database.MigrateUp(ctx, dsn))
 	version, dirty, err = database.MigrateVersion(ctx, dsn)
 	require.NoError(t, err)
-	require.Equal(t, uint(1), version)
+	// latestMigration is the version of the newest file in migrations/. Bump it
+	// when a migration is added: this assertion is what catches a migration that
+	// silently fails to apply.
+	require.Equal(t, uint(latestMigration), version)
 	require.False(t, dirty)
 
 	require.NoError(t, database.MigrateUp(ctx, dsn), "up must be idempotent")

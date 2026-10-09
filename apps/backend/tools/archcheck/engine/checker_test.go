@@ -23,7 +23,7 @@ func TestCheck(t *testing.T) {
 		{
 			name: "clean layout has no violations",
 			packages: []Package{
-				pkg("internal/modules/health/domain", "context"),
+				pkg("internal/modules/health/domain", "context", "github.com/google/uuid"),
 				pkg("internal/modules/health/repository", internal("internal/modules/health/domain"), internal("internal/platform/database"), "github.com/jackc/pgx/v5"),
 				pkg("internal/modules/health/service", internal("internal/modules/health/domain"), internal("internal/platform/logger")),
 				pkg("internal/modules/health/handler", internal("internal/modules/health/domain"), internal("internal/platform/response"), "github.com/gofiber/fiber/v2"),
@@ -36,11 +36,37 @@ func TestCheck(t *testing.T) {
 			},
 		},
 		{
-			name: "domain must stay pure",
+			name: "domain must not import a framework",
 			packages: []Package{
 				pkg("internal/modules/health/domain", "github.com/gofiber/fiber/v2"),
 			},
 			wantRule: "domain-pure",
+		},
+		{
+			name: "domain must not import a driver",
+			packages: []Package{
+				pkg("internal/modules/health/domain", "github.com/jackc/pgx/v5/pgxpool"),
+			},
+			wantRule: "domain-pure",
+		},
+		{
+			name: "domain must not import generated query code",
+			packages: []Package{
+				pkg("internal/modules/health/domain", internal("internal/modules/health/repository/sqlcgen")),
+			},
+			wantRule: "domain-isolated",
+		},
+		{
+			name: "repository may import its generated query code",
+			packages: []Package{
+				pkg("internal/modules/health/repository", internal("internal/modules/health/repository/sqlcgen"), internal("internal/modules/health/domain")),
+			},
+		},
+		{
+			name: "domain may use plain value types",
+			packages: []Package{
+				pkg("internal/modules/health/domain", "github.com/google/uuid", "time", "context", "errors"),
+			},
 		},
 		{
 			name: "domain must not import platform",

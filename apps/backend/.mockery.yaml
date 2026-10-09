@@ -11,3 +11,21 @@ packages:
       Repository:
       Checker:
       Service:
+  github.com/robzlabz/employeebot/apps/backend/internal/modules/auth/domain:
+    interfaces:
+      Repository:
+      Service:
+      TokenIssuer:
+      StateSigner:
+      Mailer:
+      GoogleProvider:
+      LoginThrottle:
+      Passwords:
+      Tokens:
+  github.com/robzlabz/employeebot/apps/backend/internal/modules/workspace/domain:
+    interfaces:
+      Repository:
+      Service:
+      Mailer:
+      Provisioner:
+      Tokens:

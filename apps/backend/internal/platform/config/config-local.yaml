@@ -1,6 +1,9 @@
 # Local development defaults. Environment variables override these values.
 Application:
   Environment: "local"
+  FrontendURL: "http://localhost:3000"
+  # Local development accepts any origin; staging and production list theirs.
+  CORSOrigins: []
 
 Http:
   Address: ":8080"
@@ -30,6 +33,31 @@ Temporal:
 JWT:
   Secret: "local_dev_jwt_secret"
   ExpireHours: 24
+
+Auth:
+  AccessTokenMinutes: 15
+  RefreshHours: 720
+  VerificationHours: 24
+  ResetMinutes: 60
+  StateMinutes: 10
+  CookieDomain: ""
+  # Plain HTTP locally, so the cookie cannot be Secure here.
+  CookieSecure: false
+  LoginThrottleCapacity: 5
+  LoginThrottleRefill: 0.2
+
+# Google sign-in stays disabled until a client is registered; the endpoints then
+# report it as not configured instead of failing the whole API.
+Google:
+  ClientID: ""
+  ClientSecret: ""
+  RedirectURL: "http://localhost:8080/api/auth/google/callback"
+
+Mail:
+  # The log driver prints the verification and invitation links to the log,
+  # which is what a developer clicks.
+  Driver: "log"
+  From: "Bolu <no-reply@bolu.local>"
 
 Logging:
   Level: "debug"

@@ -2,6 +2,10 @@ version: "2"
 # sqlc reads the golang-migrate files directly, so the migrations stay the single
 # source of truth for both the schema and the generated Go. One entry per module
 # keeps each generated package next to the repository that uses it.
+#
+# uuid maps to github.com/google/uuid.UUID and nullable timestamps to *time.Time,
+# so the generated types are the ones the domain uses and the repositories do not
+# translate between representations.
 sql:
   - engine: "postgresql"
     schema: "migrations"
@@ -16,3 +20,91 @@ sql:
         overrides:
           - db_type: "vector"
             go_type: "string"
+          - db_type: "uuid"
+            go_type: "github.com/google/uuid.UUID"
+          - db_type: "uuid"
+            nullable: true
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"
+              pointer: true
+          # Timestamps and TIME map to the standard library so the domain and the
+          # repositories share one representation instead of pgtype wrappers.
+          - db_type: "timestamptz"
+            go_type: "time.Time"
+          - db_type: "timestamptz"
+            nullable: true
+            go_type:
+              import: "time"
+              type: "Time"
+              pointer: true
+          - db_type: "time"
+            go_type: "time.Time"
+
+  - engine: "postgresql"
+    schema: "migrations"
+    queries: "internal/modules/auth/repository/queries"
+    gen:
+      go:
+        package: "sqlcgen"
+        out: "internal/modules/auth/repository/sqlcgen"
+        sql_package: "pgx/v5"
+        emit_pointers_for_null_types: true
+        emit_empty_slices: true
+        overrides:
+          - db_type: "vector"
+            go_type: "string"
+          - db_type: "uuid"
+            go_type: "github.com/google/uuid.UUID"
+          - db_type: "uuid"
+            nullable: true
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"
+              pointer: true
+          # Timestamps and TIME map to the standard library so the domain and the
+          # repositories share one representation instead of pgtype wrappers.
+          - db_type: "timestamptz"
+            go_type: "time.Time"
+          - db_type: "timestamptz"
+            nullable: true
+            go_type:
+              import: "time"
+              type: "Time"
+              pointer: true
+          - db_type: "time"
+            go_type: "time.Time"
+
+  - engine: "postgresql"
+    schema: "migrations"
+    queries: "internal/modules/workspace/repository/queries"
+    gen:
+      go:
+        package: "sqlcgen"
+        out: "internal/modules/workspace/repository/sqlcgen"
+        sql_package: "pgx/v5"
+        emit_pointers_for_null_types: true
+        emit_empty_slices: true
+        overrides:
+          - db_type: "vector"
+            go_type: "string"
+          - db_type: "uuid"
+            go_type: "github.com/google/uuid.UUID"
+          - db_type: "uuid"
+            nullable: true
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"
+              pointer: true
+          # Timestamps and TIME map to the standard library so the domain and the
+          # repositories share one representation instead of pgtype wrappers.
+          - db_type: "timestamptz"
+            go_type: "time.Time"
+          - db_type: "timestamptz"
+            nullable: true
+            go_type:
+              import: "time"
+              type: "Time"
+              pointer: true
+          - db_type: "time"
+            go_type: "time.Time"

@@ -16,9 +16,13 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/zap"
 
+	"github.com/robzlabz/employeebot/apps/backend/internal/platform/authn"
 	"github.com/robzlabz/employeebot/apps/backend/internal/platform/config"
 	"github.com/robzlabz/employeebot/apps/backend/internal/platform/database"
 	"github.com/robzlabz/employeebot/apps/backend/internal/platform/logger"
+	"github.com/robzlabz/employeebot/apps/backend/internal/platform/mail"
+	"github.com/robzlabz/employeebot/apps/backend/internal/platform/oauth/google"
+	"github.com/robzlabz/employeebot/apps/backend/internal/platform/ratelimit"
 	"github.com/robzlabz/employeebot/apps/backend/internal/platform/redis"
 	"github.com/robzlabz/employeebot/apps/backend/internal/platform/temporal"
 )
@@ -30,6 +34,14 @@ type Container struct {
 	DB       *database.Pool
 	Redis    *redis.Client
 	Temporal *temporal.Client
+
+	// Authentication primitives. They are nil when the database is not
+	// configured, and the auth routes then answer 503.
+	Issuer  *authn.Issuer
+	States  *authn.StateSigner
+	Mailer  mail.Sender
+	Limiter *ratelimit.Limiter
+	Google  *google.Client
 
 	Repositories *Repositories
 	Services     *Services
@@ -50,6 +62,12 @@ type options struct {
 	redisSet    bool
 	temporal    *temporal.Client
 	temporalSet bool
+	mailer      mail.Sender
+	mailerSet   bool
+	google      *google.Client
+	googleSet   bool
+	limiter     *ratelimit.Limiter
+	limiterSet  bool
 	buildApp    bool
 }
 
@@ -85,6 +103,32 @@ func WithTemporal(client *temporal.Client) Option {
 	return func(o *options) {
 		o.temporal = client
 		o.temporalSet = true
+	}
+}
+
+// WithMailer injects a mail sender. Tests use it to capture the verification
+// and invitation links instead of printing them.
+func WithMailer(sender mail.Sender) Option {
+	return func(o *options) {
+		o.mailer = sender
+		o.mailerSet = true
+	}
+}
+
+// WithGoogle injects a Google client, which lets tests point the endpoints at a
+// stub server.
+func WithGoogle(client *google.Client) Option {
+	return func(o *options) {
+		o.google = client
+		o.googleSet = true
+	}
+}
+
+// WithLimiter injects a rate limiter.
+func WithLimiter(limiter *ratelimit.Limiter) Option {
+	return func(o *options) {
+		o.limiter = limiter
+		o.limiterSet = true
 	}
 }
 
@@ -126,13 +170,32 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Container, e
 		return nil, err
 	}
 
+	if o.mailerSet {
+		c.Mailer = o.mailer
+	}
+	if o.googleSet {
+		c.Google = o.google
+	}
+	if o.limiterSet {
+		c.Limiter = o.limiter
+	}
+
 	c.Repositories = newRepositories(c.DB)
 	c.Services = newServices(c.Repositories, c.Redis)
-	c.Handlers = newHandlers(c.Services, c.Logger)
+
+	// The auth and workspace services are assembled after the repositories,
+	// because they need them, and before the handlers, because they need the
+	// services.
+	if err := c.openAuth(ctx, cfg); err != nil {
+		c.Close()
+		return nil, err
+	}
+
+	c.Handlers = newHandlers(c.Services, c.Logger, cfg)
 
 	if o.buildApp {
 		c.app = c.newApp(cfg)
-		registerRoutes(c.app, c.Handlers, cfg.Http.ApiPrefix)
+		c.registerRoutes()
 	}
 
 	return c, nil
