@@ -3,19 +3,34 @@
 import { BotSvg } from "@/components/bolu/bot-svg";
 import { ChatView } from "./chat-view";
 import { DashView } from "./dash-view";
+import { IntegrationsModal } from "./integrations-modal";
+import { IntegrationsView } from "./integrations-view";
+import { MobileBar } from "./mobile-bar";
+import { OfficeView } from "./office-view";
+import { RoutineView } from "./routine-view";
+import { SettingsView } from "./settings-view";
 import { Sidebar } from "./sidebar";
 import { useDashboardState } from "./use-dashboard-state";
 
-/** The whole dashboard: sidebar plus either the Dasbor summary or one bot's chat. */
+/** The whole dashboard: mobile bar + sidebar + the active view + overlays. */
 export function DashboardShell() {
   const d = useDashboardState();
 
   return (
     <div className="flex min-h-screen flex-wrap items-stretch bg-bolu-bg text-bolu-ink">
+      <MobileBar d={d} />
       <Sidebar d={d} />
       <div className="box-border flex min-w-0 flex-[999_1_640px] flex-col">
-        {d.isDash ? <DashView d={d} /> : <ChatView d={d} />}
+        {d.isDash ? <DashView d={d} /> : null}
+        {d.isRoutine ? <RoutineView d={d} /> : null}
+        {d.isOffice ? <OfficeView d={d} /> : null}
+        {d.isInteg ? <IntegrationsView d={d} /> : null}
+        {d.isSettings ? <SettingsView d={d} /> : null}
+        {d.isChat ? <ChatView d={d} /> : null}
       </div>
+
+      {d.hasModal && d.md ? <IntegrationsModal md={d.md} /> : null}
+
       {d.toast ? (
         <div
           role="status"

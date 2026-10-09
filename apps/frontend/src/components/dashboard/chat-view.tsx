@@ -1,49 +1,83 @@
 import { BotSvg } from "@/components/bolu/bot-svg";
-import type { BotController, DraftCard as DraftCardData } from "./use-dashboard-state";
+import { ACCENT, type Dashboard, type DraftCard as DraftCardData } from "./use-dashboard-state";
 
-/** One bot's chat: header switch, bio + starter chips, thread with draft cards, right rail. */
-export function ChatView({ d }: { d: BotController }) {
+/** One bot's or one group's chat: header, bio + chips, thread, and the right rail. */
+export function ChatView({ d }: { d: Dashboard }) {
+  const c = d.chat;
   return (
     <div className="flex min-h-screen flex-col">
-      <div className="flex flex-wrap items-center gap-3 border-b border-bolu-border bg-white p-[14px_28px]">
-        <BotSvg bot={d.cur.face} className="size-10 flex-none" />
-        <div className="min-w-0 flex-[1_1_200px]">
-          <div className="font-display text-[20px] font-semibold leading-[1.2]">{d.cur.name}</div>
-          <div className="text-[14px] font-semibold" style={{ color: d.cur.statusColor }}>
-            {d.cur.status}
+      <div className="flex flex-wrap items-center gap-3 border-b border-bolu-border bg-white p-[14px_28px] max-[760px]:p-[10px_14px]">
+        {c.isOne ? <BotSvg bot={c.face} className="size-10 flex-none" /> : null}
+        {c.isGroup ? (
+          <div className="flex flex-none">
+            {c.members.map((member) => (
+              <div
+                key={member.name}
+                className="-mr-2.5 box-border size-[38px] rounded-full bg-white p-0.5"
+              >
+                <BotSvg bot={member.bot} className="size-full" />
+              </div>
+            ))}
+          </div>
+        ) : null}
+        <div className="ml-1.5 min-w-0 flex-[1_1_200px]">
+          <div className="font-display text-[20px] font-semibold leading-[1.2]">{c.title}</div>
+          <div className="text-[14px] font-semibold" style={{ color: c.subColor }}>
+            {c.sub}
           </div>
         </div>
-        <span className="text-[14px] text-bolu-muted">{d.cur.toggleText}</span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={!d.cur.off}
-          aria-label={d.cur.toggleLabel}
-          onClick={d.cur.toggle}
-          className="flex h-[30px] w-[52px] flex-none cursor-pointer rounded-full border-0 p-[3px]"
-          style={{ backgroundColor: d.cur.trackColor, justifyContent: d.cur.knobSide }}
-        >
-          <span className="block size-6 rounded-full bg-white" />
-        </button>
+        {c.isOne ? (
+          <div className="flex items-center gap-2.5">
+            <span className="text-[14px] text-bolu-muted">{c.toggleText}</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={!c.off}
+              aria-label={c.toggleLabel}
+              onClick={c.toggle}
+              className="flex h-[30px] w-[52px] flex-none cursor-pointer rounded-full border-0 p-[3px]"
+              style={{
+                backgroundColor: c.off ? "#C9CDE0" : "#1E1B2E",
+                justifyContent: c.off ? "flex-start" : "flex-end",
+              }}
+            >
+              <span className="block size-6 rounded-full bg-white" />
+            </button>
+          </div>
+        ) : null}
       </div>
 
-      <div className="flex flex-1 flex-wrap items-start gap-6 p-[24px_28px_32px]">
+      <div className="flex flex-1 flex-wrap items-start gap-6 p-[24px_28px_32px] max-[760px]:p-[16px_14px_28px]">
         <div className="mx-auto flex min-w-0 max-w-[780px] flex-[999_1_520px] flex-col gap-[18px]">
           <div className="flex flex-col items-center gap-2 p-[12px_0_8px] text-center">
-            <div
-              className="flex size-[168px] items-center justify-center rounded-full"
-              style={{ backgroundColor: d.cur.tint }}
-            >
-              <BotSvg
-                bot={d.big}
-                className={d.cur.anim ? `${d.cur.anim} size-32` : "size-32"}
-                style={{ animationDelay: d.big.delay }}
-              />
-            </div>
-            <div className="font-display text-[32px] font-bold leading-[1.1]">{d.cur.name}</div>
-            <div className="max-w-[460px] text-bolu-muted">{d.cur.bio}</div>
+            {c.isOne ? (
+              <div
+                className="flex size-[168px] items-center justify-center rounded-full max-[760px]:size-[132px]"
+                style={{ backgroundColor: c.tint }}
+              >
+                <BotSvg
+                  bot={c.big}
+                  className={`size-32 max-[760px]:size-[100px] ${c.anim}`}
+                  style={{ animationDelay: c.big.delay }}
+                />
+              </div>
+            ) : null}
+            {c.isGroup ? (
+              <div className="flex items-end justify-center gap-1.5 rounded-full bg-bolu-line px-7 pb-3.5 pt-[18px]">
+                {c.members.map((member) => (
+                  <BotSvg
+                    key={member.name}
+                    bot={member.bot}
+                    className={`size-[92px] max-[760px]:size-[60px] ${member.anim}`}
+                    style={{ animationDelay: member.bot.delay }}
+                  />
+                ))}
+              </div>
+            ) : null}
+            <div className="font-display text-[32px] font-bold leading-[1.1]">{c.title}</div>
+            <div className="max-w-[480px] text-bolu-muted">{c.bio}</div>
             <div className="mt-1.5 flex flex-wrap justify-center gap-2">
-              {d.chips.map((chip) => (
+              {c.chips.map((chip) => (
                 <button
                   key={chip.label}
                   type="button"
@@ -57,7 +91,7 @@ export function ChatView({ d }: { d: BotController }) {
           </div>
 
           <div className="flex flex-col gap-3.5">
-            {d.thread.map((msg) => (
+            {c.thread.map((msg) => (
               <div key={msg.key} className={msg.cls}>
                 {msg.mine ? (
                   <div className="flex justify-end">
@@ -68,11 +102,14 @@ export function ChatView({ d }: { d: BotController }) {
                 ) : null}
                 {msg.theirs ? (
                   <div className="flex items-start gap-2.5">
-                    <BotSvg bot={d.cur.face} className="mt-0.5 size-[34px] flex-none" />
-                    <div className="flex min-w-0 max-w-[560px] flex-1 flex-col gap-2.5">
+                    <BotSvg bot={msg.bot} className="mt-0.5 size-9 flex-none" />
+                    <div className="flex min-w-0 max-w-[560px] flex-1 flex-col gap-1.5">
+                      {msg.showName ? (
+                        <span className="text-[13px] font-bold text-bolu-body">{msg.name}</span>
+                      ) : null}
                       <div
                         className="self-start rounded-[6px_20px_20px_20px] p-[11px_16px] text-[15px]"
-                        style={{ backgroundColor: d.cur.tint }}
+                        style={{ backgroundColor: msg.tint }}
                       >
                         {msg.text}
                       </div>
@@ -83,13 +120,14 @@ export function ChatView({ d }: { d: BotController }) {
               </div>
             ))}
 
-            {d.isTyping ? (
-              <div className="pop flex items-center gap-2.5">
-                <BotSvg bot={d.cur.face} className="size-[34px] flex-none" />
+            {c.typingBots.map((tb) => (
+              <div key={tb.key} className="pop flex items-center gap-2.5">
+                <BotSvg bot={tb.bot} className="size-9 flex-none" />
                 <div
-                  className="rounded-[6px_20px_20px_20px] p-[14px_16px]"
-                  style={{ backgroundColor: d.cur.tint }}
+                  className="flex items-center gap-2 rounded-[6px_20px_20px_20px] p-[12px_16px]"
+                  style={{ backgroundColor: tb.tint }}
                 >
+                  <span className="text-[13px] font-bold">{tb.name}</span>
                   <span className="dots">
                     <span />
                     <span />
@@ -97,29 +135,30 @@ export function ChatView({ d }: { d: BotController }) {
                   </span>
                 </div>
               </div>
-            ) : null}
+            ))}
           </div>
 
           <div className="mt-1 flex items-center gap-2 rounded-[28px] border border-bolu-chip bg-white p-[6px_6px_6px_20px]">
             <label htmlFor="pesan" className="sr-only">
-              Pesan untuk {d.cur.name}
+              Pesan
             </label>
             <input
               id="pesan"
               type="text"
-              value={d.chatMsg}
-              onChange={(event) => d.setChatMsg(event.target.value)}
+              value={c.chatMsg}
+              onChange={(event) => c.setChatMsg(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === "Enter") d.sendChat();
+                if (event.key === "Enter") c.sendChat();
               }}
-              placeholder={d.placeholder}
+              placeholder={c.placeholder}
               className="min-h-[46px] min-w-0 flex-1 border-0 bg-transparent text-bolu-ink outline-none"
             />
             <button
               type="button"
               aria-label="Kirim pesan"
-              onClick={d.sendChat}
-              className="flex size-[46px] flex-none cursor-pointer items-center justify-center rounded-full border-0 bg-bolu-accent"
+              onClick={c.sendChat}
+              className="flex size-[46px] flex-none cursor-pointer items-center justify-center rounded-full border-0"
+              style={{ backgroundColor: ACCENT }}
             >
               <svg
                 width="20"
@@ -139,52 +178,76 @@ export function ChatView({ d }: { d: BotController }) {
         </div>
 
         <div className="flex min-w-0 flex-[1_1_260px] flex-col gap-3.5">
-          <div className="flex flex-col gap-2.5 rounded-[26px] border border-bolu-border bg-white p-[18px]">
-            <div className="font-display text-[18px] font-semibold">Hari ini</div>
-            <div className="grid grid-cols-2 gap-2.5">
-              <div className="rounded-[14px] bg-bolu-bg p-[10px_12px]">
-                <div className="font-display text-[26px] font-bold">{d.cur.doneToday}</div>
-                <div className="text-[13px] text-bolu-muted">tugas selesai</div>
+          {c.isOne ? (
+            <>
+              <div className="flex flex-col gap-2.5 rounded-[26px] border border-bolu-border bg-white p-[18px]">
+                <div className="font-display text-[18px] font-semibold">Hari ini</div>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div className="rounded-[14px] bg-bolu-bg p-[10px_12px]">
+                    <div className="font-display text-[26px] font-bold">{c.doneToday}</div>
+                    <div className="text-[13px] text-bolu-muted">tugas selesai</div>
+                  </div>
+                  <div className="rounded-[14px] bg-bolu-bg p-[10px_12px]">
+                    <div className="font-display text-[26px] font-bold">{c.pendingN}</div>
+                    <div className="text-[13px] text-bolu-muted">menunggu kamu</div>
+                  </div>
+                </div>
               </div>
-              <div className="rounded-[14px] bg-bolu-bg p-[10px_12px]">
-                <div className="font-display text-[26px] font-bold">{d.cur.pendingN}</div>
-                <div className="text-[13px] text-bolu-muted">menunggu kamu</div>
-              </div>
-            </div>
-          </div>
 
-          <div className="flex flex-col gap-2.5 rounded-[26px] border border-bolu-border bg-white p-[18px]">
-            <div className="font-display text-[18px] font-semibold">
-              Yang dikerjakan {d.cur.name}
-            </div>
-            {d.cur.skills.map((skill) => (
-              <div key={skill} className="flex items-start gap-2.5 text-[15px]">
-                <span
-                  className="mt-2 size-2 flex-none rounded-full"
-                  style={{ backgroundColor: d.cur.color }}
-                />
-                <span>{skill}</span>
+              <div className="flex flex-col gap-2.5 rounded-[26px] border border-bolu-border bg-white p-[18px]">
+                <div className="font-display text-[18px] font-semibold">
+                  Yang dikerjakan {c.title}
+                </div>
+                {c.skills.map((skill) => (
+                  <div key={skill} className="flex items-start gap-2.5 text-[15px]">
+                    <span
+                      className="mt-2 size-2 flex-none rounded-full"
+                      style={{ backgroundColor: c.color }}
+                    />
+                    <span>{skill}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          <div className="flex flex-col gap-2 rounded-[26px] border border-bolu-border bg-white p-[18px]">
-            <div className="font-display text-[18px] font-semibold">Kerja bareng</div>
-            <div className="text-[15px] text-bolu-muted">{d.cur.team}</div>
-            <div className="mt-1 flex gap-1">
-              {d.cur.mates.map((mate) => (
+              <div className="flex flex-col gap-2 rounded-[26px] border border-bolu-border bg-white p-[18px]">
+                <div className="font-display text-[18px] font-semibold">Rutinitas {c.title}</div>
+                {c.routines.map((routine) => (
+                  <div key={`${routine.time}-${routine.title}`} className="flex gap-2.5 text-[14px]">
+                    <span className="w-16 flex-none font-bold">{routine.time}</span>
+                    <span>{routine.title}</span>
+                  </div>
+                ))}
+                {c.noRoutine ? (
+                  <div className="text-[14px] text-bolu-muted">Belum ada rutinitas.</div>
+                ) : null}
+              </div>
+            </>
+          ) : null}
+
+          {c.isGroup ? (
+            <div className="flex flex-col gap-2.5 rounded-[26px] border border-bolu-border bg-white p-[18px]">
+              <div className="font-display text-[18px] font-semibold">Anggota grup</div>
+              {c.members.map((member) => (
                 <button
-                  key={mate.name}
+                  key={member.name}
                   type="button"
-                  onClick={mate.pick}
-                  aria-label={`Buka obrolan ${mate.name}`}
-                  className="size-11 cursor-pointer border-0 bg-transparent p-0"
+                  onClick={member.pick}
+                  className="flex cursor-pointer items-center gap-2.5 rounded-2xl border border-bolu-line bg-white p-2 text-left text-bolu-ink"
                 >
-                  <BotSvg bot={mate.face} className="size-11" />
+                  <BotSvg bot={member.bot} className="size-10 flex-none" />
+                  <div className="min-w-0">
+                    <div className="font-bold">{member.name}</div>
+                    <div className="text-[13px] text-bolu-muted">
+                      {member.role} ·{" "}
+                      <span className="font-semibold" style={{ color: member.statusColor }}>
+                        {member.line}
+                      </span>
+                    </div>
+                  </div>
                 </button>
               ))}
             </div>
-          </div>
+          ) : null}
         </div>
       </div>
     </div>

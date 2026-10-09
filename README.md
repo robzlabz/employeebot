@@ -98,5 +98,6 @@ realtime room.
 - **Local infra:** Docker Compose (`postgres`, `backend`, `frontend`).
 
 Frontend routes today: `/` (hero + 8 bot), `/pricing` (tier placeholder, catatan
-billing transfer bank), `/dashboard` (placeholder). Belum ada auth, integrasi
-pembayaran, atau koneksi backend.
+billing transfer bank), `/dashboard` (UI mock tanpa auth: lima view — dasbor,
+rutinitas, kantor, integrasi, pengaturan — plus chat bot dan grup). Belum ada
+auth, integrasi pembayaran, atau koneksi backend.

@@ -3,7 +3,7 @@
  * Body shapes, colours and face defaults come from `@/lib/crew`; everything
  * else here is dashboard-only copy (keywords, drafts, threads, live feed).
  */
-import { bot, type CrewMember } from "@/lib/crew";
+import { allBot, bot, type CrewMember } from "@/lib/crew";
 
 export type DraftId = "a1" | "a2" | "a3" | "a4" | "a5";
 
@@ -118,7 +118,86 @@ export const SEED: Record<string, SeedMsg[]> = {
     ["bot", "Ada 30 email masuk sejak kemarin, 3 kutandai penting."],
     ["bot", "Ini draf balasan untuk CV Maju:", "a3"],
   ],
+  Cerah: [
+    ["bot", "Hai! Kalender konten minggu ini sudah kuisi 5 postingan. Drafnya bisa kamu cek kapan saja."],
+  ],
+  Gembul: [
+    ["bot", "Iklan promo kaos sedang berjalan. Ringkasan hasilnya kukirim tiap sore."],
+  ],
+  Riang: [
+    [
+      "bot",
+      "Ada 12 komentar baru di Instagram, 11 sudah kubalas. Satu keluhan kutahan untuk kamu baca.",
+    ],
+  ],
 };
+
+/** A group thread seed: `[who, text, draftId?]`, where `who` is a bot name or `you`. */
+export type GroupSeedMsg = [string, string, DraftId?];
+
+export type Group = {
+  id: string;
+  name: string;
+  /** Which sidebar section the group belongs to. */
+  team: "bolu" | "hore";
+  members: string[];
+  desc: string;
+  chips: string[];
+  seed: GroupSeedMsg[];
+};
+
+export const GROUPS: Record<string, Group> = {
+  g1: {
+    id: "g1",
+    name: "Grup Tagihan",
+    team: "bolu",
+    members: ["Oren", "Ijo", "Lila"],
+    desc: "Dari pesanan masuk sampai lunas: Ijo mencatat, Oren menagih, Lila mengingatkan.",
+    chips: ["Siapa saja yang belum bayar?", "Kirim ringkasan tagihan minggu ini", "Percepat pengingat jadi H-3"],
+    seed: [
+      ["Ijo", "Rekap hari ini: 3 pesanan baru, 2 belum lunas."],
+      ["Oren", "Invoice untuk 3 pesanan sudah kubuat. Yang belum lunas kuantrekan pengingatnya."],
+      ["Lila", "Pengingat jatuh tempo sudah kupasang H-1 untuk semua invoice."],
+      ["you", "Mantap, makasih tim!"],
+      ["Oren", "Sama-sama! Tinggal INV-0043 yang perlu kamu setujui.", "a1"],
+    ],
+  },
+  g2: {
+    id: "g2",
+    name: "Grup Pelanggan",
+    team: "bolu",
+    members: ["Biru", "Ijo", "Kunyit", "Pinky"],
+    desc: "Semua urusan pelanggan, dari chat WhatsApp, email, sampai dokumen yang mereka minta.",
+    chips: ["Ada pelanggan yang komplain hari ini?", "Kirim ulang invoice bulan lalu ke Rina", "Rangkum pertanyaan terbanyak minggu ini"],
+    seed: [
+      ["Biru", "Ada pelanggan minta salinan invoice bulan lalu lewat WhatsApp."],
+      ["Pinky", "Ketemu! INV-0031 ada di Arsip/2026/September. Sudah kuoper ke Biru."],
+      ["Biru", "Terkirim ke pelanggan. Terima kasih, Pinky!"],
+      ["Kunyit", "Pelanggan yang sama juga kirim email, sudah kubalas dengan lampiran yang sama."],
+    ],
+  },
+  g3: {
+    id: "g3",
+    name: "Kampanye Oktober",
+    team: "hore",
+    members: ["Cerah", "Gembul"],
+    desc: "Cerah menyiapkan konten, Gembul mengubahnya jadi iklan dan memantau hasilnya.",
+    chips: ["Caption mana yang paling bagus?", "Naikkan iklan yang paling laku", "Buat versi iklan untuk Story"],
+    seed: [
+      ["Cerah", "Draf 5 caption untuk promo kaos Oktober sudah siap."],
+      ["Gembul", "Aku pakai caption nomor 2 untuk iklan. Anggaran harian: [ANGGARAN]."],
+      ["Cerah", "Siap, nanti kubuatkan versi Story-nya juga."],
+    ],
+  },
+};
+
+export const GORDER_BOLU = ["g1", "g2"];
+export const GORDER_HORE = ["g3"];
+
+/** Is `id` a group conversation? */
+export function isGroupId(id: string): boolean {
+  return id in GROUPS;
+}
 
 /** [who, what, when] for the live activity feed's opening rows. */
 export const INIT_FEED: [string, string, string][] = [
@@ -233,12 +312,60 @@ const DASH_SEEDS: DashSeed[] = [
   },
 ];
 
+const HORE_DASH_SEEDS: DashSeed[] = [
+  {
+    name: "Cerah",
+    kw: ["konten", "caption", "posting", "instagram", "ig", "feed"],
+    done: 5,
+    bio: "Aku menulis caption, menyusun kalender konten, dan menyiapkan jadwal posting media sosial.",
+    skills: ["Menulis caption sesuai gaya brand", "Menyusun kalender konten mingguan", "Menjadwalkan posting"],
+    chips: ["Buat 5 caption promo minggu ini", "Susun kalender konten November", "Ide konten untuk hari Jumat"],
+    after: "Draf kontennya kutaruh di sini untuk kamu cek dulu.",
+    team: "Menyerahkan caption terbaik ke Gembul untuk dijadikan iklan.",
+    mates: ["Gembul", "Riang"],
+    acts: ["menulis caption promo", "menyusun kalender konten", "menjadwalkan posting"],
+  },
+  {
+    name: "Gembul",
+    kw: ["iklan", "ads", "anggaran", "budget", "kampanye"],
+    done: 3,
+    bio: "Aku memantau iklan yang berjalan, mencatat hasilnya, dan memberi saran kapan perlu diubah.",
+    skills: ["Memantau hasil iklan harian", "Membandingkan versi iklan", "Melapor ringkasan tiap sore"],
+    chips: ["Ringkas hasil iklan kemarin", "Bandingkan dua versi iklan", "Hentikan iklan yang boros"],
+    after: "Anggaran iklan tidak akan kuubah tanpa persetujuanmu.",
+    team: "Memakai caption dari Cerah dan meminta Riang memantau komentar di iklan.",
+    mates: ["Cerah", "Riang"],
+    acts: ["memantau iklan promo", "mencatat hasil iklan", "membandingkan dua versi iklan"],
+  },
+  {
+    name: "Riang",
+    kw: ["komentar", "dm", "review", "ulasan", "mention"],
+    done: 12,
+    bio: "Aku membalas komentar dan DM media sosial, dan menahan keluhan supaya kamu bisa membacanya dulu.",
+    skills: ["Membalas komentar dan DM", "Menandai keluhan pelanggan", "Mengucapkan terima kasih untuk ulasan bagus"],
+    chips: ["Balas komentar yang belum terjawab", "Rangkum keluhan minggu ini", "Balas ulasan bintang 5"],
+    after: "Komentar bernada keluhan kutahan dulu untuk kamu baca.",
+    team: "Melapor ke Gembul kalau ada komentar ramai di iklan.",
+    mates: ["Gembul", "Cerah"],
+    acts: ["membalas komentar Instagram", "menandai keluhan", "membalas DM"],
+  },
+];
+
 /** Dashboard crew, in sidebar order — shapes come from the landing crew. */
 export const DASH_BOTS: DashBot[] = DASH_SEEDS.map((seed) => ({ ...bot(seed.name), ...seed }));
 
+/** The Tim Hore crew, shown under "Tim lain" in the sidebar. */
+export const HORE_BOTS: DashBot[] = HORE_DASH_SEEDS.map((seed) => ({
+  ...allBot(seed.name),
+  ...seed,
+}));
+
+/** Every dashboard bot, both teams. */
+export const ALL_DASH_BOTS: DashBot[] = [...DASH_BOTS, ...HORE_BOTS];
+
 /** Dashboard crew lookup that throws on typos instead of rendering nothing. */
 export function dashBot(name: string): DashBot {
-  const found = DASH_BOTS.find((member) => member.name === name);
+  const found = ALL_DASH_BOTS.find((member) => member.name === name);
   if (!found) throw new Error(`Unknown dashboard crew member: ${name}`);
   return found;
 }

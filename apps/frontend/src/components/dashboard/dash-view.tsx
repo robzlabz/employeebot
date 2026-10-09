@@ -1,13 +1,15 @@
 import { BotSvg } from "@/components/bolu/bot-svg";
-import type { DashController } from "./use-dashboard-state";
+import type { Dashboard } from "./use-dashboard-state";
 
 /** The Dasbor view: greeting, "Suruh Bolu", stats, pending drafts, feed, week, bills. */
-export function DashView({ d }: { d: DashController }) {
+export function DashView({ d }: { d: Dashboard }) {
   return (
-    <div className="flex flex-col gap-[22px] p-[24px_28px_48px]">
+    <div className="flex flex-col gap-[22px] p-[24px_28px_48px] max-[760px]:p-[18px_14px_36px]">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-[36px] font-bold leading-[1.1]">Selamat siang</h1>
+          <h1 className="font-display text-[36px] font-bold leading-[1.1] max-[760px]:text-[28px]">
+            Selamat siang
+          </h1>
           <div className="text-bolu-muted">Rabu, 7 Oktober · ini ringkasan kerja tim kecilmu</div>
         </div>
         <div className="flex items-center gap-2.5">
@@ -37,14 +39,17 @@ export function DashView({ d }: { d: DashController }) {
       </div>
 
       <div className="flex flex-wrap items-center gap-3.5 rounded-[26px] bg-bolu-ink p-[18px_20px] text-white">
-        <label htmlFor="suruh" className="flex-none font-display text-[19px] font-semibold">
+        <label
+          htmlFor="suruh"
+          className="flex-none font-display text-[19px] font-semibold max-[760px]:basis-full"
+        >
           Suruh Bolu
         </label>
         <input
           id="suruh"
           type="text"
           value={d.dashMsg}
-          onChange={(event) => d.setDashMsg(event.target.value)}
+          onChange={(event) => d.onDashMsg(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter") d.sendDash();
           }}
@@ -64,7 +69,7 @@ export function DashView({ d }: { d: DashController }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3.5">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(200px,100%),1fr))] gap-3.5">
         {d.stats.map((stat) => (
           <div
             key={stat.label}

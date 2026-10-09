@@ -3,8 +3,17 @@
  * Shapes, mouths, feet, colours and copy must stay identical to the design.
  */
 
-export type ShapeName = "kacang" | "hantu" | "gumpal" | "awan" | "tetes" | "mochi";
-export type MouthName = "open" | "smile" | "focus" | "w" | "o" | "sleep";
+export type ShapeName =
+  | "kacang"
+  | "hantu"
+  | "gumpal"
+  | "awan"
+  | "tetes"
+  | "mochi"
+  | "bulat"
+  | "kotak"
+  | "daun";
+export type MouthName = "open" | "smile" | "focus" | "w" | "o" | "sleep" | "chill";
 
 type ShapeDef = {
   /** Body outline path, in the 200×200 viewBox. */
@@ -60,6 +69,24 @@ export const SHAPES: Record<ShapeName, ShapeDef> = {
     face: "translate(100 127) scale(1.1)",
     foot: 172,
   },
+  bulat: {
+    d: "M100 38 C138 38 168 68 168 106 C168 144 138 174 100 174 C62 174 32 144 32 106 C32 68 62 38 100 38 Z",
+    sw: 4,
+    face: "translate(100 108) scale(1.15)",
+    foot: 174,
+  },
+  kotak: {
+    d: "M64 40 L136 40 Q166 40 166 70 L166 142 Q166 172 136 172 L64 172 Q34 172 34 142 L34 70 Q34 40 64 40 Z",
+    sw: 4,
+    face: "translate(100 109) scale(1.2)",
+    foot: 172,
+  },
+  daun: {
+    d: "M40 60 C70 46 150 50 166 66 C176 80 150 140 110 158 C80 170 46 160 38 130 C30 100 26 70 40 60 Z",
+    sw: 4,
+    face: "translate(98 101) scale(1.05)",
+    foot: 0,
+  },
 };
 
 export const MOUTHS: Record<MouthName, MouthDef> = {
@@ -69,6 +96,7 @@ export const MOUTHS: Record<MouthName, MouthDef> = {
   w: { d: "M-9 13 Q-4.5 19 0 13 Q4.5 19 9 13", fill: "none", sw: 4 },
   o: { d: "M-5 18 a5 6 0 1 0 10 0 a5 6 0 1 0 -10 0 Z", fill: "#1E1B2E", sw: 0 },
   sleep: { d: "M-6 17 L6 17", fill: "none", sw: 4 },
+  chill: { d: "M-8 14 Q0 20 8 14", fill: "none", sw: 4 },
 };
 
 export type BotShape = {
@@ -94,6 +122,10 @@ export type BotShape = {
   delay: string;
   /** Draw the paused face: closed eyes instead of the blinking ones. */
   eyesClosed?: boolean;
+  /** Draw the relaxed face: half-lidded eyes, used while a bot is chilling. */
+  eyesLazy?: boolean;
+  /** Draw the coffee cup + humming note that go with the chill face. */
+  chillFx?: boolean;
 };
 
 export type CrewMember = {
@@ -152,6 +184,10 @@ export type FaceVariant = {
   look?: string;
   /** Draw the paused (closed-eye) face. */
   closed?: boolean;
+  /** Draw the relaxed (half-lidded) face. Ignored when `closed` is set. */
+  lazy?: boolean;
+  /** Draw the coffee cup + humming note beside the face. */
+  fx?: boolean;
 };
 
 /**
@@ -161,13 +197,16 @@ export type FaceVariant = {
  */
 export function withFace(member: BotShape, variant: FaceVariant = {}): BotShape {
   const mouth = variant.mouth ? MOUTHS[variant.mouth] : null;
+  const closed = variant.closed ?? false;
   return {
     ...member,
     mouth: mouth ? mouth.d : member.mouth,
     mouthFill: mouth ? mouth.fill : member.mouthFill,
     mouthSw: mouth ? mouth.sw : member.mouthSw,
     look: variant.look ?? member.look,
-    eyesClosed: variant.closed ?? false,
+    eyesClosed: closed,
+    eyesLazy: !!variant.lazy && !closed,
+    chillFx: variant.fx ?? false,
   };
 }
 
@@ -270,6 +309,54 @@ const CREW_SEEDS = [
 
 export const CREW: CrewMember[] = CREW_SEEDS.map(mk);
 
+const HORE_SEEDS = [
+  {
+    name: "Cerah",
+    role: "Pembuat konten",
+    shape: "kotak",
+    color: "#F2645A",
+    feetColor: "#D1463D",
+    tint: "#FDE1DF",
+    mouth: "smile",
+    look: "translate(2 -2)",
+    delay: ".3s",
+    bio: "Menulis caption, menyusun kalender konten, dan menyiapkan jadwal posting media sosial.",
+    acts: ["Menulis caption promo", "Menyusun kalender konten", "Menjadwalkan posting"],
+  },
+  {
+    name: "Gembul",
+    role: "Pengelola iklan",
+    shape: "bulat",
+    color: "#1BB4C8",
+    feetColor: "#118A9A",
+    tint: "#D6F3F7",
+    mouth: "focus",
+    look: "translate(-2 2)",
+    delay: ".9s",
+    bio: "Memantau iklan yang berjalan, mencatat hasilnya, dan memberi saran kapan perlu diubah.",
+    acts: ["Memantau iklan promo", "Mencatat hasil iklan", "Membandingkan dua versi iklan"],
+  },
+  {
+    name: "Riang",
+    role: "Pembalas komentar",
+    shape: "daun",
+    color: "#9CC827",
+    feetColor: "#7DA215",
+    tint: "#EEF6D5",
+    mouth: "open",
+    look: "translate(3 1)",
+    delay: "1.5s",
+    bio: "Membalas komentar dan DM media sosial, dan menahan keluhan supaya kamu bisa membacanya dulu.",
+    acts: ["Membalas komentar Instagram", "Menandai keluhan", "Membalas DM"],
+  },
+] satisfies BotSeed[];
+
+/** The "Tim Hore" crew — the dashboard's Tim lain section shows only these. */
+export const HORE: CrewMember[] = HORE_SEEDS.map(mk);
+
+/** Every bot the dashboard knows about: Tim Bolu plus Tim Hore. */
+export const ALL_BOTS: CrewMember[] = [...CREW, ...HORE];
+
 /** The logo reuses Oren's body with the "open" mouth. */
 export const LOGO = mk({
   name: "bolu",
@@ -288,6 +375,13 @@ export const LOGO = mk({
 /** Crew lookup that throws on typos instead of silently rendering nothing. */
 export function bot(name: string): CrewMember {
   const found = CREW.find((member) => member.name === name);
+  if (!found) throw new Error(`Unknown crew member: ${name}`);
+  return found;
+}
+
+/** Dashboard-wide bot lookup covering both teams. */
+export function allBot(name: string): CrewMember {
+  const found = ALL_BOTS.find((member) => member.name === name);
   if (!found) throw new Error(`Unknown crew member: ${name}`);
   return found;
 }
