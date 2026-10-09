@@ -1,0 +1,36 @@
+# Local development defaults. Environment variables override these values.
+Application:
+  Environment: "local"
+
+Http:
+  Address: ":8080"
+  ReadTimeout: "30s"
+  WriteTimeout: "30s"
+  ApiPrefix: "/api"
+
+Database:
+  URL: "postgres://employeebot:employeebot_secret@localhost:5432/employeebot?sslmode=disable"
+  MaxOpenConns: 25
+  MaxIdleConns: 5
+  ConnMaxLifetime: 3600
+
+Redis:
+  URL: "redis://localhost:6379/0"
+
+# docker-compose runs a self-hosted Temporal; staging/production use Temporal
+# Cloud (Singapore) and supply these values through the environment.
+Temporal:
+  HostPort: "localhost:7233"
+  Namespace: "default"
+  TaskQueueAgent: "bolu-agent"
+  TaskQueueIntegration: "bolu-integration"
+  TLS: false
+  APIKey: ""
+
+JWT:
+  Secret: "local_dev_jwt_secret"
+  ExpireHours: 24
+
+Logging:
+  Level: "debug"
+  Format: "console"

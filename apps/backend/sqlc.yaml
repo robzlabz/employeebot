@@ -1,0 +1,18 @@
+version: "2"
+# sqlc reads the golang-migrate files directly, so the migrations stay the single
+# source of truth for both the schema and the generated Go. One entry per module
+# keeps each generated package next to the repository that uses it.
+sql:
+  - engine: "postgresql"
+    schema: "migrations"
+    queries: "internal/modules/health/repository/queries"
+    gen:
+      go:
+        package: "sqlcgen"
+        out: "internal/modules/health/repository/sqlcgen"
+        sql_package: "pgx/v5"
+        emit_pointers_for_null_types: true
+        emit_empty_slices: true
+        overrides:
+          - db_type: "vector"
+            go_type: "string"

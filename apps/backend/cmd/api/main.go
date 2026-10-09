@@ -1,0 +1,88 @@
+// Command api runs the HTTP and WebSocket surface: it accepts every user
+// request, opens the realtime connection, and starts long-running work on
+// Temporal instead of doing it in the request.
+package main
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"go.uber.org/zap"
+
+	"github.com/robzlabz/employeebot/apps/backend/internal/container"
+	"github.com/robzlabz/employeebot/apps/backend/internal/platform/config"
+)
+
+const shutdownTimeout = 10 * time.Second
+
+func main() {
+	if err := run(); err != nil {
+		fmt.Fprintf(os.Stderr, "api: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
+	env := flag.String("env", "", "environment: local, staging, production (defaults to $ENVIRONMENT, else local)")
+	flag.Parse()
+	if *env != "" {
+		if err := os.Setenv("ENVIRONMENT", *env); err != nil {
+			return fmt.Errorf("set environment: %w", err)
+		}
+	}
+
+	if err := config.LoadDotEnv(); err != nil {
+		return fmt.Errorf("load .env: %w", err)
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	c, err := container.New(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer c.Close()
+
+	address := cfg.Http.Address
+	if address == "" {
+		address = ":8080"
+	}
+
+	c.Logger.Info("starting api",
+		zap.String("environment", cfg.Application.Environment),
+		zap.String("address", address),
+		zap.Bool("database", c.DB != nil),
+		zap.Bool("redis", c.Redis != nil),
+		zap.Bool("temporal", c.Temporal != nil),
+	)
+
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- c.App().Listen(address)
+	}()
+
+	select {
+	case err := <-serverErr:
+		if err != nil {
+			return fmt.Errorf("listen: %w", err)
+		}
+		return nil
+	case <-ctx.Done():
+		c.Logger.Info("shutting down api")
+		if err := c.App().ShutdownWithTimeout(shutdownTimeout); err != nil {
+			return fmt.Errorf("shutdown: %w", err)
+		}
+		return nil
+	}
+}

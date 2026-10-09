@@ -1,0 +1,37 @@
+# Non-local defaults. Every secret and every endpoint must be supplied through
+# the environment: staging and production override the values below.
+Application:
+  Environment: "production"
+
+Http:
+  Address: ":8080"
+  ReadTimeout: "30s"
+  WriteTimeout: "30s"
+  ApiPrefix: "/api"
+
+Database:
+  URL: ""
+  MaxOpenConns: 100
+  MaxIdleConns: 10
+  ConnMaxLifetime: 3600
+
+Redis:
+  URL: ""
+
+# Temporal Cloud (Singapore, aws-ap-southeast-1) for staging/production. Left
+# empty on purpose so no endpoint is committed to the repository.
+Temporal:
+  HostPort: ""
+  Namespace: ""
+  TaskQueueAgent: "bolu-agent"
+  TaskQueueIntegration: "bolu-integration"
+  TLS: true
+  APIKey: ""
+
+JWT:
+  Secret: ""
+  ExpireHours: 24
+
+Logging:
+  Level: "info"
+  Format: "json"

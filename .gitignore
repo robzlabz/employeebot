@@ -12,6 +12,8 @@ node_modules/
 
 # testing
 coverage/
+coverage.out
+coverage.raw
 
 # next.js
 .next/
