@@ -50,6 +50,24 @@ func TestStateSignAndVerify(t *testing.T) {
 	}
 }
 
+// tamper flips the last character of a signed value.
+//
+// It replaces rather than appends: the previous form appended a "0", which left
+// the value untouched whenever the signature already ended in one, so the test
+// passed for the wrong reason roughly one run in sixty.
+func tamper(value string) string {
+	if value == "" {
+		return "x"
+	}
+
+	last := value[len(value)-1]
+	replacement := byte('A')
+	if last == 'A' {
+		replacement = 'B'
+	}
+	return value[:len(value)-1] + string(replacement)
+}
+
 func TestStateVerifyRejectsBadValues(t *testing.T) {
 	signer := newSigner(t, 10*time.Minute)
 
@@ -78,7 +96,7 @@ func TestStateVerifyRejectsBadValues(t *testing.T) {
 		"empty":        "",
 		"garbage":      "garbage",
 		"two parts":    "nonce.expiry",
-		"tampered":     valid[:len(valid)-1] + "0",
+		"tampered":     tamper(valid),
 		"other secret": foreignState,
 		"expired":      expiredState,
 	}

@@ -126,6 +126,41 @@ integrations it was granted:
 Revoking a grant removes the tools on the next read, which is what makes the
 guardrail take effect on the next task.
 
+## Model gateway (EPIC 4)
+
+A workspace stores its providers with a fallback order; a Bolu may pin one,
+bring its own endpoint, or override only the model. The effective chain is
+resolved per request: **Bolu override → workspace chain → platform default**,
+where the platform default is used only when the workspace configured nothing.
+
+| Endpoint | Auth | Role | Notes |
+| --- | --- | --- | --- |
+| `GET /llm/providers` | bearer + tenant | any | Providers in fallback order, redacted |
+| `GET /llm/adapters` | bearer | any | The wire formats this deployment can serve |
+| `POST /llm/providers` | bearer + tenant | owner, admin | `{name, adapter, base_url?, model, api_key?, priority?, max_tokens?, context_tokens?, is_default?, enabled?}` |
+| `PUT /llm/providers/:id` | bearer + tenant | owner, admin | Same body; an empty `api_key` keeps the stored secret, `clear_api_key: true` removes it |
+| `DELETE /llm/providers/:id` | bearer + tenant | owner, admin | Removes it from the chain |
+| `POST /llm/providers/:id/test` | bearer + tenant | owner, admin | Calls the provider once and returns its capabilities; the call is recorded |
+| `GET /llm/usage?days=30` | bearer + tenant | any | Per-day totals: calls, tokens, cache tokens, cost (micro-rupiah) |
+| `GET /agents/:id/model` | bearer + tenant | any | The Bolu's override, never the key itself |
+| `PUT /agents/:id/model` | bearer + tenant | owner, admin | `{provider_id?, adapter?, base_url?, model?, api_key?, max_tokens?}` |
+
+What the gateway guarantees:
+
+- **The secret never travels back.** A response says `has_api_key`, never the
+  key. It is sealed with AES-256-GCM before it reaches the database, so a dump
+  does not leak credentials.
+- **Fallback is narrow.** A rate limit, an outage, a provider-side quota, or a
+  model that cannot serve the request moves to the next provider. A malformed
+  request returns at once. Streaming falls back only before the first byte.
+- **No call is unrecorded.** One call writes exactly one `usage_ledger` row
+  naming the provider and model that answered. A cost that cannot be written
+  returns `usage_not_recorded` and is not retryable, because retrying would bill
+  the call twice.
+- **The quota is checked before the provider is called.** The live counter is
+  Redis; when Redis is unavailable the check sums the ledger, so an outage cannot
+  hand out a second allowance.
+
 ## Error codes
 
 | Code | Status | Meaning |
@@ -158,3 +193,13 @@ guardrail take effect on the next task.
 | `invalid_permission` | 400 | Permission is not `read` or `read_write` |
 | `agent_busy` | 409 | The Bolu still has a running task |
 | `agent_limit_reached` | 409 | The plan's Bolu allowance is used up |
+| `provider_not_found` | 404 | No such provider in this workspace |
+| `provider_exists` | 409 | A provider with that name already exists |
+| `no_provider` | 409 | The workspace has no provider, so no model can be called |
+| `unsupported` | 400 | The chosen model cannot serve the request (tools, vision) |
+| `context_too_long` | 400 | The prompt does not fit the model's context |
+| `rate_limited` | 429 | The provider asked us to slow down |
+| `quota_exceeded` | 429 | The workspace used up its token allowance |
+| `provider_unavailable` | 502 | The provider is down or unreachable |
+| `usage_not_recorded` | 500 | The call succeeded but its cost could not be written |
+| `llm_not_configured` | 503 | Module not wired (no database) |

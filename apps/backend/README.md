@@ -50,6 +50,7 @@ make migrate-up      # apply migrations to $DATABASE_URL
 | `auth` | `/api/auth/*` | Register, verify, login, refresh, logout, password reset, Google |
 | `workspace` | `/api/workspaces/*`, `/api/invitations/accept` | Onboarding, members, roles, invitations |
 | `agent` | `/api/agents/*`, `/api/teams` | The Bolu registry: profiles, derived status, tools, grants |
+| `llm` | `/api/llm/*`, `/api/agents/:id/model` | The model gateway: provider configuration, fallback chain, per-Bolu override, usage report |
 
 ### Authentication
 
@@ -93,6 +94,33 @@ read back inside the transaction that creates it.
 - A tool only reaches the model when its integration was granted to that Bolu,
   and a `read` grant keeps only the read-labelled tools.
 
+### Model gateway
+
+- **Providers are data.** A workspace stores its providers with a fallback
+  order (`is_default`, then `priority`); a Bolu may pin one, bring its own
+  endpoint, or override only the model. The effective chain is resolved per
+  request: **Bolu override → workspace chain → platform default**, and the
+  platform default is used only when the workspace configured nothing.
+- **The secret never leaves the backend in clear.** An API key is sealed with
+  AES-256-GCM (key from `SECRET_ENCRYPTION_KEY`) before it reaches the database,
+  and responses only say whether a key is stored. An edit that sends no key
+  keeps the stored one; clearing it is an explicit request.
+- **Fallback is narrow on purpose.** A rate limit, an outage, a provider-side
+  quota, or a model that cannot serve the request (no tools, no vision, prompt
+  too long) moves to the next provider. A malformed request fails everywhere, so
+  it returns at once instead of spending the whole chain.
+- **Every call is recorded.** One provider call writes exactly one
+  `usage_ledger` row (tokens, model, cost, task, purpose), and the provider that
+  actually answered is what the row names. A call whose cost cannot be written
+  returns an error rather than a silent success, and it is not retryable: the
+  provider has already billed it.
+- **The quota hook runs before the provider is called.** The live counter is
+  Redis; when Redis is unavailable the check sums the ledger instead, so an
+  outage cannot hand out a second allowance. `LLM_QUOTA_ENABLED=false` turns the
+  check off for local development without touching the adapters.
+- Streaming falls back **only before the first byte**: once a fragment reached
+  the caller, restarting on another provider would duplicate the answer.
+
 ## Configuration
 
 Configuration is read from `internal/platform/config/config.yaml` (or
@@ -109,12 +137,16 @@ configured one is down.
 Environment variables worth knowing: `JWT_SECRET` (signs access tokens **and**
 the OAuth state), `FRONTEND_URL` (the base of the emailed links and the Google
 callback target), `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`GOOGLE_REDIRECT_URL`
-(Google sign-in stays disabled while they are empty), and `MAIL_DRIVER` (`log`
-prints the links, `smtp` sends them).
+(Google sign-in stays disabled while they are empty), `MAIL_DRIVER` (`log`
+prints the links, `smtp` sends them), and the model gateway's
+`SECRET_ENCRYPTION_KEY` (32 bytes, base64/hex/raw, seals the provider keys at
+rest), `LLM_DEFAULT_*` (the provider the platform offers a workspace that
+configured none), `LLM_QUOTA_ENABLED`/`LLM_TOKENS_PER_PERIOD`, and
+`LLM_CHAIN_LIMIT`.
 
 Deployment and region decisions: `docs/adr/0001-temporal-dan-region.md`.
 Test strategy and gates: `docs/testing.md`.
 API contract: `docs/api.md`.
 
 The web app routes are English: `/signup`, `/login`, `/verify`,
-`/forgot-password`, `/join`, `/onboarding`, `/settings/team`.
+`/forgot-password`, `/join`, `/onboarding`, `/settings/team`, `/settings/model`.

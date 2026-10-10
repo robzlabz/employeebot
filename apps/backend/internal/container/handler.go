@@ -7,6 +7,7 @@ import (
 	agenthandler "github.com/robzlabz/employeebot/apps/backend/internal/modules/agent/handler"
 	authhandler "github.com/robzlabz/employeebot/apps/backend/internal/modules/auth/handler"
 	healthhandler "github.com/robzlabz/employeebot/apps/backend/internal/modules/health/handler"
+	llmhandler "github.com/robzlabz/employeebot/apps/backend/internal/modules/llm/handler"
 	"github.com/robzlabz/employeebot/apps/backend/internal/modules/workspace/domain"
 	workspacehandler "github.com/robzlabz/employeebot/apps/backend/internal/modules/workspace/handler"
 	"github.com/robzlabz/employeebot/apps/backend/internal/platform/config"
@@ -21,6 +22,7 @@ type Handlers struct {
 	Auth      *authhandler.Handler
 	Workspace *workspacehandler.Handler
 	Agent     *agenthandler.Handler
+	LLM       *llmhandler.Handler
 }
 
 // newHandlers builds every handler from the service set. Handlers receive the
@@ -46,6 +48,9 @@ func newHandlers(services *Services, log *zap.Logger, cfg *config.Config) *Handl
 	}
 	if services.Agent != nil {
 		handlers.Agent = agenthandler.New(services.Agent, log)
+	}
+	if services.LLM != nil {
+		handlers.LLM = llmhandler.New(services.LLM, log)
 	}
 
 	return handlers
@@ -103,15 +108,25 @@ func (c *Container) registerRoutes() {
 
 	if c.Handlers.Agent == nil {
 		registerAgentFallback(tenant)
-		return
+	} else {
+		// The registry: everyone in the workspace may read it.
+		agenthandler.Routes(tenant, c.Handlers.Agent)
 	}
 
-	// The registry: everyone in the workspace may read it.
-	agenthandler.Routes(tenant, c.Handlers.Agent)
+	// Model configuration is read by every member, because the Bolu screens show
+	// which model a Bolu uses, and written by a managing role, because it holds
+	// the provider keys.
+	if c.Handlers.LLM == nil {
+		registerModelFallback(tenant)
+		return
+	}
+	llmhandler.Routes(tenant, c.Handlers.LLM)
 
-	// Changing the registry needs a managing role.
 	registry := api.Group("", c.requireUser(), c.requireTenant(), requireRole(domain.RoleOwner, domain.RoleAdmin))
-	agenthandler.ManagerRoutes(registry, c.Handlers.Agent)
+	if c.Handlers.Agent != nil {
+		agenthandler.ManagerRoutes(registry, c.Handlers.Agent)
+	}
+	llmhandler.ManagerRoutes(registry, c.Handlers.LLM)
 }
 
 // registerUnavailableModules registers the fallbacks for the modules that are
@@ -125,6 +140,9 @@ func (c *Container) registerUnavailableModules(api fiber.Router) {
 	if c.Handlers.Agent == nil {
 		registerAgentFallback(api)
 	}
+	if c.Handlers.LLM == nil {
+		registerModelFallback(api)
+	}
 }
 
 // registerAgentFallback answers 503 for the registry routes.
@@ -132,6 +150,12 @@ func registerAgentFallback(router fiber.Router) {
 	message := "the agent registry is not configured"
 	router.All("/agents*", unavailable(message, "agent_not_configured"))
 	router.All("/teams*", unavailable(message, "agent_not_configured"))
+}
+
+// registerModelFallback answers 503 for the model configuration routes.
+func registerModelFallback(router fiber.Router) {
+	message := "the model gateway is not configured"
+	router.All("/llm/*", unavailable(message, "llm_not_configured"))
 }
 
 // cookiePath scopes the refresh cookie to the auth endpoints, so it is not sent

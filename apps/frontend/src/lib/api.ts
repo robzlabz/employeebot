@@ -453,3 +453,148 @@ export function setAgentGrant(
 export function listAgentTools(workspaceId: string, agentId: string): Promise<ApiResult<Tool[]>> {
   return request<Tool[]>(`/agents/${agentId}/tools`, { workspace: workspaceId });
 }
+
+// ---------------------------------------------------------------- model gateway
+
+/** One configured route to a model. The API never returns the secret itself. */
+export type ModelProvider = {
+  id: string;
+  name: string;
+  /** openai or anthropic: which wire format the endpoint speaks. */
+  adapter: string;
+  base_url: string;
+  model: string;
+  /** Lower runs first in the fallback chain. */
+  priority: number;
+  max_tokens: number;
+  context_tokens: number;
+  is_default: boolean;
+  enabled: boolean;
+  has_api_key: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ModelProviderInput = {
+  name: string;
+  adapter: string;
+  base_url?: string;
+  model: string;
+  /** Empty keeps the stored key; the screen never receives it back. */
+  api_key?: string;
+  clear_api_key?: boolean;
+  priority?: number;
+  max_tokens?: number;
+  context_tokens?: number;
+  is_default?: boolean;
+  enabled?: boolean;
+};
+
+export type ProviderCapabilities = {
+  tools: boolean;
+  vision: boolean;
+  streaming: boolean;
+  prompt_caching: boolean;
+  parallel_tool_calls: boolean;
+  max_context_tokens: number;
+};
+
+/** One day of aggregated spend, which the model screen shows next to the quota. */
+export type UsageDay = {
+  day: string;
+  provider: string;
+  model: string;
+  purpose: string;
+  calls: number;
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_tokens: number;
+  cache_write_tokens: number;
+  total_tokens: number;
+  /** Indonesian micro-rupiah: 1 rupiah is 1,000,000. */
+  cost_micros: number;
+};
+
+export type AgentModelOverride = {
+  provider_id?: string;
+  adapter?: string;
+  base_url?: string;
+  model?: string;
+  max_tokens?: number;
+  has_api_key: boolean;
+};
+
+/** listModelProviders returns the workspace providers in fallback order. */
+export function listModelProviders(workspaceId: string): Promise<ApiResult<ModelProvider[]>> {
+  return request<ModelProvider[]>("/llm/providers", { workspace: workspaceId });
+}
+
+/** listModelAdapters returns the wire formats the backend can serve. */
+export function listModelAdapters(): Promise<ApiResult<{ adapters: string[] }>> {
+  return request<{ adapters: string[] }>("/llm/adapters");
+}
+
+/** createModelProvider adds a provider to the fallback chain. */
+export function createModelProvider(
+  workspaceId: string,
+  input: ModelProviderInput,
+): Promise<ApiResult<ModelProvider>> {
+  return request<ModelProvider>("/llm/providers", { method: "POST", body: input, workspace: workspaceId });
+}
+
+/** updateModelProvider edits a provider. An empty api_key keeps the stored one. */
+export function updateModelProvider(
+  workspaceId: string,
+  providerId: string,
+  input: ModelProviderInput,
+): Promise<ApiResult<ModelProvider>> {
+  return request<ModelProvider>(`/llm/providers/${providerId}`, {
+    method: "PUT",
+    body: input,
+    workspace: workspaceId,
+  });
+}
+
+/** deleteModelProvider removes a provider from the chain. */
+export function deleteModelProvider(workspaceId: string, providerId: string): Promise<ApiResult<null>> {
+  return request<null>(`/llm/providers/${providerId}`, { method: "DELETE", workspace: workspaceId });
+}
+
+/** testModelProvider calls the provider once, which is how a key is proven. */
+export function testModelProvider(
+  workspaceId: string,
+  providerId: string,
+): Promise<ApiResult<ProviderCapabilities>> {
+  return request<ProviderCapabilities>(`/llm/providers/${providerId}/test`, {
+    method: "POST",
+    workspace: workspaceId,
+  });
+}
+
+/** modelUsage returns the aggregated spend of the last days, newest first. */
+export function modelUsage(workspaceId: string, days = 30): Promise<ApiResult<UsageDay[]>> {
+  return request<UsageDay[]>(`/llm/usage?days=${days}`, { workspace: workspaceId });
+}
+
+/** getAgentModel reads one Bolu's model override. */
+export function getAgentModel(workspaceId: string, agentId: string): Promise<ApiResult<AgentModelOverride>> {
+  return request<AgentModelOverride>(`/agents/${agentId}/model`, { workspace: workspaceId });
+}
+
+/**
+ * setAgentModel stores one Bolu's override.
+ *
+ * An empty provider_id with an empty model clears the override, which puts the
+ * Bolu back on the workspace chain.
+ */
+export function setAgentModel(
+  workspaceId: string,
+  agentId: string,
+  input: { provider_id?: string; adapter?: string; base_url?: string; model?: string; api_key?: string; max_tokens?: number },
+): Promise<ApiResult<AgentModelOverride>> {
+  return request<AgentModelOverride>(`/agents/${agentId}/model`, {
+    method: "PUT",
+    body: input,
+    workspace: workspaceId,
+  });
+}

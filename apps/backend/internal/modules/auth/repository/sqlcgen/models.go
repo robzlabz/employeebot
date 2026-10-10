@@ -194,6 +194,23 @@ type KnowledgeItem struct {
 	CreatedAt   time.Time
 }
 
+type LlmProvider struct {
+	ID              uuid.UUID
+	WorkspaceID     uuid.UUID
+	Name            string
+	Adapter         string
+	BaseUrl         string
+	Model           string
+	ApiKeyEncrypted []byte
+	Priority        int32
+	MaxTokens       int32
+	ContextTokens   int32
+	IsDefault       bool
+	Enabled         bool
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
 type Member struct {
 	ID          uuid.UUID
 	WorkspaceID uuid.UUID
@@ -372,6 +389,21 @@ type ToolCatalog struct {
 	Label          string
 	Description    string
 	CreatedAt      time.Time
+}
+
+// Daily usage totals per workspace, provider, model, and purpose. Days follow Asia/Jakarta, which is where the customers are.
+type UsageDaily struct {
+	WorkspaceID      uuid.UUID
+	Day              pgtype.Date
+	Provider         string
+	Model            string
+	Purpose          string
+	Calls            int64
+	InputTokens      int64
+	OutputTokens     int64
+	CacheReadTokens  int64
+	CacheWriteTokens int64
+	CostMicros       int64
 }
 
 type UsageLedger struct {

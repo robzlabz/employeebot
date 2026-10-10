@@ -191,6 +191,14 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Container, e
 		return nil, err
 	}
 
+	// The model gateway is assembled after the repositories, because it needs
+	// them, and after the auth services for the same reason the handlers are: it
+	// is wired into the route table below.
+	if err := c.openLLM(ctx, cfg); err != nil {
+		c.Close()
+		return nil, err
+	}
+
 	c.Handlers = newHandlers(c.Services, c.Logger, cfg)
 
 	if o.buildApp {
