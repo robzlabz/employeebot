@@ -59,6 +59,30 @@ Mail:
   Driver: "log"
   From: "Bolu <no-reply@bolu.local>"
 
+Llm:
+  # A development key, exactly 32 characters. Production supplies its own through
+  # SECRET_ENCRYPTION_KEY, and rotating the key means re-entering the provider
+  # keys: the stored ciphertext cannot be read with another key.
+  SecretEncryptionKey: "local_dev_secret_key_32_byte_len"
+  Default:
+    # Empty means the platform offers no fallback provider, so a workspace must
+    # configure its own before a Bolu can think. Point these at a local model to
+    # develop without spending anything:
+    #   Adapter: openai
+    #   BaseURL: http://localhost:11434   # Ollama
+    #   Model:   llama3.1
+    Adapter: ""
+    BaseURL: ""
+    Model: ""
+    APIKey: ""
+    MaxTokens: 0
+    ContextTokens: 0
+  # Local development runs without the token check, so a fresh workspace can call
+  # a model before any package exists.
+  QuotaEnabled: false
+  TokensPerPeriod: 0
+  ChainLimit: 3
+
 Logging:
   Level: "debug"
   Format: "console"

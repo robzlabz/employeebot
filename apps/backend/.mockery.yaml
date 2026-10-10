@@ -34,3 +34,17 @@ packages:
       Mailer:
       Provisioner:
       Tokens:
+  github.com/robzlabz/employeebot/apps/backend/internal/modules/llm/domain:
+    interfaces:
+      Store:
+      AgentStore:
+      Factory:
+      UsageRecorder:
+      UsageReader:
+      QuotaCounter:
+      QuotaPolicy:
+      CostTable:
+      Gateway:
+      Provider:
+      SecretBox:
+      Resolver:

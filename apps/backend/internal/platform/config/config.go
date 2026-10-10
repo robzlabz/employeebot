@@ -15,6 +15,7 @@ type Config struct {
 	Google      GoogleConfig
 	Mail        MailConfig
 	Plan        PlanConfig
+	Llm         LlmConfig
 	Logging     LoggingConfig
 }
 
@@ -125,6 +126,41 @@ type MailConfig struct {
 type PlanConfig struct {
 	// MaxAgentsPerWorkspace caps the Bolu registry. Zero means unlimited.
 	MaxAgentsPerWorkspace int `mapstructure:"MaxAgentsPerWorkspace" validate:"optional"`
+}
+
+// LlmConfig holds the model gateway settings: how the provider keys are sealed
+// at rest, which provider the platform offers when a workspace configures none,
+// and whether the token allowance is enforced.
+type LlmConfig struct {
+	// SecretEncryptionKey seals the provider API keys at rest. Base64, hex, or 32
+	// raw characters. Empty leaves the feature read-only: no key can be stored,
+	// and the settings screen says so instead of writing a secret in clear text.
+	SecretEncryptionKey string `mapstructure:"SecretEncryptionKey" validate:"optional"`
+	// Default is the platform-level provider, used by a workspace that has not
+	// configured one of its own. It is how a self-hosted deployment works out of
+	// the box. The environment variables LLM_DEFAULT_* override its fields.
+	Default DefaultProviderConfig `mapstructure:"Default"`
+	// QuotaEnabled turns the pre-flight token check on. Local development runs
+	// with it off, so a fresh workspace can call a model before any package
+	// exists.
+	QuotaEnabled bool `mapstructure:"QuotaEnabled"`
+	// TokensPerPeriod is the monthly token allowance of a workspace. Zero means
+	// unlimited. EPIC 12 (#97) replaces this with the subscription's package.
+	TokensPerPeriod int64 `mapstructure:"TokensPerPeriod"`
+	// ChainLimit is how many providers one request tries before giving up.
+	ChainLimit int `mapstructure:"ChainLimit"`
+}
+
+// DefaultProviderConfig is the platform-level provider. Every field is optional:
+// an empty Model means this deployment offers no fallback provider, and a
+// workspace without one cannot call a model until it configures one.
+type DefaultProviderConfig struct {
+	Adapter       string `mapstructure:"Adapter" validate:"optional"`
+	BaseURL       string `mapstructure:"BaseURL" validate:"optional"`
+	Model         string `mapstructure:"Model" validate:"optional"`
+	APIKey        string `mapstructure:"APIKey" validate:"optional"`
+	MaxTokens     int    `mapstructure:"MaxTokens" validate:"optional"`
+	ContextTokens int    `mapstructure:"ContextTokens" validate:"optional"`
 }
 
 // LoggingConfig holds structured logging settings.

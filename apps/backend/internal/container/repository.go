@@ -6,6 +6,7 @@ import (
 	agentrepo "github.com/robzlabz/employeebot/apps/backend/internal/modules/agent/repository"
 	authrepo "github.com/robzlabz/employeebot/apps/backend/internal/modules/auth/repository"
 	healthrepo "github.com/robzlabz/employeebot/apps/backend/internal/modules/health/repository"
+	llmrepo "github.com/robzlabz/employeebot/apps/backend/internal/modules/llm/repository"
 	workspacerepo "github.com/robzlabz/employeebot/apps/backend/internal/modules/workspace/repository"
 	"github.com/robzlabz/employeebot/apps/backend/internal/platform/database"
 )
@@ -17,6 +18,11 @@ type Repositories struct {
 	Auth      *authrepo.Repository
 	Workspace *workspacerepo.Repository
 	Agent     *agentrepo.Repository
+	// LLM holds the provider configuration, the usage ledger, and the Bolu model
+	// override; LLMAgents is the same connection with the encryption attached,
+	// and is filled in by openLLM.
+	LLM       *llmrepo.Repository
+	LLMAgents *llmrepo.AgentStore
 }
 
 // newRepositories builds every repository. When there is no pool the
@@ -42,6 +48,10 @@ func newRepositories(pool *database.Pool) *Repositories {
 		// provisioner: onboarding copies the Bolu templates inside its own
 		// transaction, and this is the only place that knows both modules.
 		repositories.Workspace = workspacerepo.New(pool, repositories.Agent)
+
+		// The model gateway works without a database too: it answers "not
+		// configured" rather than failing, exactly like the other modules.
+		repositories.LLM = llmrepo.New(pool)
 	}
 	return repositories
 }

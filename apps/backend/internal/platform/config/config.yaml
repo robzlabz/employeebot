@@ -59,6 +59,26 @@ Mail:
   Username: ""
   Password: ""
 
+Llm:
+  # Every secret and every endpoint comes from the environment in staging and
+  # production: SECRET_ENCRYPTION_KEY seals the provider API keys at rest, and
+  # LLM_DEFAULT_* describe the provider the platform offers to a workspace that
+  # configured none of its own.
+  SecretEncryptionKey: ""
+  Default:
+    Adapter: ""
+    BaseURL: ""
+    Model: ""
+    APIKey: ""
+    MaxTokens: 0
+    ContextTokens: 0
+  # Production enforces the token allowance; a workspace without a subscription
+  # has an allowance of zero, which means unlimited until EPIC 12 (#97) lands.
+  QuotaEnabled: true
+  TokensPerPeriod: 0
+  # How many providers one request tries before it gives up.
+  ChainLimit: 3
+
 Logging:
   Level: "info"
   Format: "json"

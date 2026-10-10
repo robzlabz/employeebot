@@ -5,6 +5,7 @@ import (
 	authdomain "github.com/robzlabz/employeebot/apps/backend/internal/modules/auth/domain"
 	healthdomain "github.com/robzlabz/employeebot/apps/backend/internal/modules/health/domain"
 	healthservice "github.com/robzlabz/employeebot/apps/backend/internal/modules/health/service"
+	llmdomain "github.com/robzlabz/employeebot/apps/backend/internal/modules/llm/domain"
 	workspacedomain "github.com/robzlabz/employeebot/apps/backend/internal/modules/workspace/domain"
 	"github.com/robzlabz/employeebot/apps/backend/internal/platform/redis"
 )
@@ -19,6 +20,8 @@ type Services struct {
 	Auth      authdomain.Service
 	Workspace workspacedomain.Service
 	Agent     agentdomain.Service
+	// LLM is built by openLLM, which needs the encryption key from the config.
+	LLM llmdomain.Gateway
 }
 
 // newServices builds every service. Optional dependencies (Redis today) are

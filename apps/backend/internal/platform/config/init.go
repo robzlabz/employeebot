@@ -2,7 +2,9 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -22,7 +24,9 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 
-	loadFromEnv(cfg)
+	if err := loadFromEnv(cfg); err != nil {
+		return nil, err
+	}
 
 	if err := cfg.Validate(); err != nil {
 		return nil, err
@@ -65,7 +69,11 @@ func loadFromFile(env string) (*Config, error) {
 
 // loadFromEnv applies the supported environment variable overrides. Only
 // non-empty variables win, so a YAML default is never wiped by an unset env.
-func loadFromEnv(cfg *Config) {
+//
+// A value that cannot be parsed is an error rather than a silent default: a
+// mistyped quota silently becomes "unlimited", which is the kind of mistake that
+// is only discovered on the invoice.
+func loadFromEnv(cfg *Config) error {
 	overrides := map[string]*string{
 		"ENVIRONMENT":                     &cfg.Application.Environment,
 		"HTTP_ADDRESS":                    &cfg.Http.Address,
@@ -88,10 +96,57 @@ func loadFromEnv(cfg *Config) {
 		"MAIL_HOST":                       &cfg.Mail.Host,
 		"MAIL_USERNAME":                   &cfg.Mail.Username,
 		"MAIL_PASSWORD":                   &cfg.Mail.Password,
+		"SECRET_ENCRYPTION_KEY":           &cfg.Llm.SecretEncryptionKey,
+		"LLM_DEFAULT_ADAPTER":             &cfg.Llm.Default.Adapter,
+		"LLM_DEFAULT_BASE_URL":            &cfg.Llm.Default.BaseURL,
+		"LLM_DEFAULT_MODEL":               &cfg.Llm.Default.Model,
+		"LLM_DEFAULT_API_KEY":             &cfg.Llm.Default.APIKey,
 	}
 	for key, target := range overrides {
 		if v := os.Getenv(key); v != "" {
 			*target = v
 		}
 	}
+
+	if v := os.Getenv("LLM_QUOTA_ENABLED"); v != "" {
+		enabled, err := strconv.ParseBool(v)
+		if err != nil {
+			return fmt.Errorf("parse LLM_QUOTA_ENABLED: %w", err)
+		}
+		cfg.Llm.QuotaEnabled = enabled
+	}
+
+	if v := os.Getenv("LLM_TOKENS_PER_PERIOD"); v != "" {
+		tokens, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return fmt.Errorf("parse LLM_TOKENS_PER_PERIOD: %w", err)
+		}
+		cfg.Llm.TokensPerPeriod = tokens
+	}
+
+	if v := os.Getenv("LLM_CHAIN_LIMIT"); v != "" {
+		limit, err := strconv.Atoi(v)
+		if err != nil {
+			return fmt.Errorf("parse LLM_CHAIN_LIMIT: %w", err)
+		}
+		cfg.Llm.ChainLimit = limit
+	}
+
+	if v := os.Getenv("LLM_DEFAULT_MAX_TOKENS"); v != "" {
+		tokens, err := strconv.Atoi(v)
+		if err != nil {
+			return fmt.Errorf("parse LLM_DEFAULT_MAX_TOKENS: %w", err)
+		}
+		cfg.Llm.Default.MaxTokens = tokens
+	}
+
+	if v := os.Getenv("LLM_DEFAULT_CONTEXT_TOKENS"); v != "" {
+		tokens, err := strconv.Atoi(v)
+		if err != nil {
+			return fmt.Errorf("parse LLM_DEFAULT_CONTEXT_TOKENS: %w", err)
+		}
+		cfg.Llm.Default.ContextTokens = tokens
+	}
+
+	return nil
 }

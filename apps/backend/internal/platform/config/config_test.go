@@ -19,6 +19,10 @@ func clearOverrides(t *testing.T) {
 		"TEMPORAL_HOST_PORT", "TEMPORAL_NAMESPACE", "TEMPORAL_TASK_QUEUE_AGENT",
 		"TEMPORAL_TASK_QUEUE_INTEGRATION",
 		"TEMPORAL_API_KEY", "JWT_SECRET", "LOG_LEVEL", "LOG_FORMAT",
+		"SECRET_ENCRYPTION_KEY", "LLM_DEFAULT_ADAPTER", "LLM_DEFAULT_BASE_URL",
+		"LLM_DEFAULT_MODEL", "LLM_DEFAULT_API_KEY", "LLM_DEFAULT_MAX_TOKENS",
+		"LLM_DEFAULT_CONTEXT_TOKENS", "LLM_QUOTA_ENABLED", "LLM_TOKENS_PER_PERIOD",
+		"LLM_CHAIN_LIMIT",
 	} {
 		t.Setenv(key, "")
 	}
@@ -69,6 +73,71 @@ func TestLoadAppliesEnvironmentOverrides(t *testing.T) {
 	require.Equal(t, "cloud-key", cfg.Temporal.APIKey)
 	require.Equal(t, "warn", cfg.Logging.Level)
 	require.Equal(t, "json", cfg.Logging.Format)
+}
+
+// TestLoadReadsTheModelGatewaySettings covers the environment the gateway needs:
+// the key that seals provider secrets, the fallback provider, and the quota.
+func TestLoadReadsTheModelGatewaySettings(t *testing.T) {
+	clearOverrides(t)
+	t.Setenv("ENVIRONMENT", "local")
+	t.Setenv("SECRET_ENCRYPTION_KEY", "0123456789abcdef0123456789abcdef")
+	t.Setenv("LLM_DEFAULT_ADAPTER", "openai")
+	t.Setenv("LLM_DEFAULT_BASE_URL", "http://ollama:11434")
+	t.Setenv("LLM_DEFAULT_MODEL", "llama3.1")
+	t.Setenv("LLM_DEFAULT_API_KEY", "local-key")
+	t.Setenv("LLM_DEFAULT_MAX_TOKENS", "2048")
+	t.Setenv("LLM_DEFAULT_CONTEXT_TOKENS", "32000")
+	t.Setenv("LLM_QUOTA_ENABLED", "true")
+	t.Setenv("LLM_TOKENS_PER_PERIOD", "1500000")
+	t.Setenv("LLM_CHAIN_LIMIT", "2")
+
+	cfg, err := Load()
+	require.NoError(t, err)
+
+	require.Equal(t, "0123456789abcdef0123456789abcdef", cfg.Llm.SecretEncryptionKey)
+	require.Equal(t, "openai", cfg.Llm.Default.Adapter)
+	require.Equal(t, "http://ollama:11434", cfg.Llm.Default.BaseURL)
+	require.Equal(t, "llama3.1", cfg.Llm.Default.Model)
+	require.Equal(t, "local-key", cfg.Llm.Default.APIKey)
+	require.Equal(t, 2048, cfg.Llm.Default.MaxTokens)
+	require.Equal(t, 32000, cfg.Llm.Default.ContextTokens)
+	require.True(t, cfg.Llm.QuotaEnabled)
+	require.Equal(t, int64(1500000), cfg.Llm.TokensPerPeriod)
+	require.Equal(t, 2, cfg.Llm.ChainLimit)
+}
+
+// TestLoadRejectsAMalformedQuota: a mistyped allowance must fail the startup
+// rather than silently becoming "unlimited".
+func TestLoadRejectsAMalformedQuota(t *testing.T) {
+	clearOverrides(t)
+	t.Setenv("ENVIRONMENT", "local")
+	t.Setenv("LLM_TOKENS_PER_PERIOD", "banyak")
+
+	_, err := Load()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "LLM_TOKENS_PER_PERIOD")
+
+	t.Setenv("LLM_TOKENS_PER_PERIOD", "1000")
+	t.Setenv("LLM_QUOTA_ENABLED", "mungkin")
+
+	_, err = Load()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "LLM_QUOTA_ENABLED")
+}
+
+// TestLocalDefaultsSealProviderSecrets: the development key exists so a
+// developer can store a provider key without configuring anything.
+func TestLocalDefaultsSealProviderSecrets(t *testing.T) {
+	clearOverrides(t)
+	t.Setenv("ENVIRONMENT", "local")
+
+	cfg, err := Load()
+	require.NoError(t, err)
+
+	require.Len(t, []byte(cfg.Llm.SecretEncryptionKey), 32)
+	require.False(t, cfg.Llm.QuotaEnabled, "local development runs without the token check")
+	require.Equal(t, 3, cfg.Llm.ChainLimit)
+	require.Empty(t, cfg.Llm.Default.Model, "no provider is committed to the repository")
 }
 
 // TestLoadProductionRequiresSecrets keeps a missing secret a startup failure
