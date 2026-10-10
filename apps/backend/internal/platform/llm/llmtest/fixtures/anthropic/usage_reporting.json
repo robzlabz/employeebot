@@ -1,0 +1,20 @@
+{
+  "id": "msg_recorded",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-3-5-sonnet-20241022",
+  "content": [
+    {
+      "type": "text",
+      "text": "Siap."
+    }
+  ],
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 412,
+    "output_tokens": 96,
+    "cache_read_input_tokens": 384,
+    "cache_creation_input_tokens": 28
+  }
+}

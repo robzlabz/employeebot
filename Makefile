@@ -1,5 +1,5 @@
 .PHONY: help up down logs build dev frontend backend api worker-logs \
-        test test-integration cover lint archcheck sqlc mocks generate \
+        test test-integration cover lint archcheck sqlc mocks generate llm-fixtures \
         migrate-up migrate-down migrate-create psql ci
 
 COMPOSE := docker compose
@@ -57,6 +57,9 @@ migrate-create: ## Create a migration pair: make migrate-create NAME=add_widgets
 
 sqlc: ## Generate the type-safe query code from migrations + queries
 	cd $(BACKEND) && sqlc generate
+
+llm-fixtures: ## Re-record the adapter contract fixtures from the live provider (needs OPENAI_API_KEY or ANTHROPIC_API_KEY)
+	cd $(BACKEND) && go run ./tools/llmfixtures -adapter $${ADAPTER:-openai}
 
 mocks: ## Generate the domain mocks used by service tests
 	cd $(BACKEND) && mockery --config .mockery.yaml

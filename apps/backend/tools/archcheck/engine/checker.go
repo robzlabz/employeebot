@@ -150,8 +150,16 @@ func checkInternal(from, to location, pkg Package, imp Import) (Violation, bool)
 
 	case "platform":
 		if to.kind == "module" {
-			violation.Rule = "platform-has-no-business-logic"
-			violation.Message = "platform must not import a business module"
+			// An adapter implements a port its domain declares, which is the
+			// correct direction: infrastructure depends on the contract, never
+			// the other way round. Anything past the domain — a repository, a
+			// service, a handler — is still forbidden, because that would drag
+			// business logic into platform and invite cycles.
+			if to.layer == LayerDomain {
+				return Violation{}, false
+			}
+			violation.Rule = "platform-imports-module"
+			violation.Message = "platform may only import a module's domain package to implement its port"
 			return violation, true
 		}
 		if to.kind == "container" {
