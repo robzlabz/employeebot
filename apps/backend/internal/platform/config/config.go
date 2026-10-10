@@ -16,6 +16,7 @@ type Config struct {
 	Mail        MailConfig
 	Plan        PlanConfig
 	Llm         LlmConfig
+	Storage     StorageConfig
 	Logging     LoggingConfig
 }
 
@@ -161,6 +162,35 @@ type DefaultProviderConfig struct {
 	APIKey        string `mapstructure:"APIKey" validate:"optional"`
 	MaxTokens     int    `mapstructure:"MaxTokens" validate:"optional"`
 	ContextTokens int    `mapstructure:"ContextTokens" validate:"optional"`
+}
+
+// StorageConfig holds the object storage settings: attachments, scan results,
+// and the sandboxed HTML documents the chat renders.
+type StorageConfig struct {
+	// Driver is "local" (a directory, for development) or "s3" (anything that
+	// speaks the S3 API: MinIO, R2, B2, AWS).
+	Driver string `mapstructure:"Driver" validate:"optional"`
+	// LocalRoot is where the local driver writes. It is resolved relative to the
+	// working directory.
+	LocalRoot string `mapstructure:"LocalRoot" validate:"optional"`
+	// Endpoint is the S3 host without a scheme, e.g. "minio:9000".
+	Endpoint string `mapstructure:"Endpoint" validate:"optional"`
+	Region   string `mapstructure:"Region" validate:"optional"`
+	Bucket   string `mapstructure:"Bucket" validate:"optional"`
+	// AccessKey and SecretKey come from the environment in every deployment.
+	AccessKey string `mapstructure:"AccessKey" validate:"optional"`
+	SecretKey string `mapstructure:"SecretKey" validate:"optional"`
+	UseSSL    bool   `mapstructure:"UseSSL" validate:"optional"`
+	PathStyle bool   `mapstructure:"PathStyle" validate:"optional"`
+	// ContentOrigin is where sandboxed HTML documents are served from. It is a
+	// separate host in every deployment, because the sandbox is what makes
+	// agent-written script safe to run.
+	ContentOrigin string `mapstructure:"ContentOrigin" validate:"optional"`
+	// ContentFrameAncestors lists the origins allowed to frame a content
+	// document. It is the application's own origin, and it must be named
+	// explicitly: the document is served from a different host than the app, so
+	// `frame-ancestors 'self'` would refuse every frame and break the block.
+	ContentFrameAncestors []string `mapstructure:"ContentFrameAncestors" validate:"optional"`
 }
 
 // LoggingConfig holds structured logging settings.

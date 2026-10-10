@@ -1,0 +1,187 @@
+-- Conversation queries. Every statement carries workspace_id as well as the
+-- Row Level Security policy, so a wrong id in application code still cannot
+-- reach another tenant's row.
+
+-- name: ListConversations :many
+-- The sidebar: threads with their message count and last activity, so the list
+-- renders without a query per row.
+--
+-- Last activity falls back to the creation time rather than being nullable: a
+-- thread nobody has written in yet sorts by when it was opened, which is exactly
+-- the order the sidebar wants and one fewer null to handle everywhere.
+SELECT c.id, c.workspace_id, c.kind, c.title, c.created_at, c.updated_at,
+       (SELECT count(*) FROM messages m WHERE m.conversation_id = c.id)::bigint AS message_count,
+       COALESCE(
+           (SELECT max(m.created_at) FROM messages m WHERE m.conversation_id = c.id),
+           c.created_at
+       )::timestamptz AS last_activity_at
+FROM conversations c
+WHERE c.workspace_id = $1
+ORDER BY last_activity_at DESC;
+
+-- name: GetConversation :one
+SELECT c.id, c.workspace_id, c.kind, c.title, c.created_at, c.updated_at,
+       (SELECT count(*) FROM messages m WHERE m.conversation_id = c.id)::bigint AS message_count,
+       COALESCE(
+           (SELECT max(m.created_at) FROM messages m WHERE m.conversation_id = c.id),
+           c.created_at
+       )::timestamptz AS last_activity_at
+FROM conversations c
+WHERE c.id = $1 AND c.workspace_id = $2;
+
+-- name: CreateConversation :one
+INSERT INTO conversations (workspace_id, kind, title)
+VALUES ($1, $2, $3)
+RETURNING id, workspace_id, kind, title, created_at, updated_at;
+
+-- name: RenameConversation :one
+UPDATE conversations
+SET title = $3, updated_at = now()
+WHERE id = $1 AND workspace_id = $2
+RETURNING id, workspace_id, kind, title, created_at, updated_at;
+
+-- name: TouchConversation :execrows
+-- New activity moves the thread up the list, which is what the sidebar order
+-- reads.
+UPDATE conversations
+SET updated_at = now()
+WHERE id = $1 AND workspace_id = $2;
+
+-- name: ListParticipants :many
+-- The participant list joins the two possible identities so the UI shows a name
+-- and a role without a second query.
+--
+-- The workspace filter is cast explicitly: a parameter that only appears in a
+-- comparison the planner can fold away leaves sqlc without a type to infer.
+SELECT p.id, p.conversation_id, p.agent_id, p.user_id, p.created_at,
+       COALESCE(a.name, u.email) AS display_name,
+       COALESCE(a.role, 'member') AS role
+FROM conversation_participants p
+LEFT JOIN agents a ON a.id = p.agent_id
+LEFT JOIN users u ON u.id = p.user_id
+WHERE p.workspace_id = sqlc.arg('workspace_id')::uuid
+  AND p.conversation_id = sqlc.arg('conversation_id')::uuid
+ORDER BY (p.agent_id IS NULL), display_name;
+
+-- name: AddAgentParticipant :execrows
+INSERT INTO conversation_participants (workspace_id, conversation_id, agent_id)
+VALUES ($1, $2, $3)
+ON CONFLICT DO NOTHING;
+
+-- name: AddUserParticipant :execrows
+INSERT INTO conversation_participants (workspace_id, conversation_id, user_id)
+VALUES ($1, $2, $3)
+ON CONFLICT DO NOTHING;
+
+-- name: FindDirectConversation :one
+-- The 1:1 thread with one Bolu. A direct conversation has exactly two
+-- participants, so this matches the one whose agent is the asked-for Bolu and
+-- which has no third participant.
+SELECT c.id, c.workspace_id, c.kind, c.title, c.created_at, c.updated_at
+FROM conversations c
+JOIN conversation_participants p
+    ON p.conversation_id = c.id AND p.agent_id = $2
+WHERE c.workspace_id = $1
+  AND c.kind = 'direct'
+  AND (SELECT count(*) FROM conversation_participants q WHERE q.conversation_id = c.id) = 2
+LIMIT 1;
+
+-- name: CountConversations :one
+SELECT count(*)::bigint FROM conversations WHERE workspace_id = $1;
+
+-- ---------------------------------------------------------------- messages
+
+-- name: AppendMessage :one
+INSERT INTO messages (
+    workspace_id, conversation_id, author_agent_id, author_user_id,
+    blocks, attachments, task_id, status, finish_reason
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING *;
+
+-- name: UpdateMessage :one
+-- The body and status of a message that already exists: how a streamed reply is
+-- finished, and how a partial one is marked.
+UPDATE messages
+SET blocks = $3,
+    attachments = $4,
+    task_id = COALESCE($5, task_id),
+    status = $6,
+    finish_reason = $7
+WHERE id = $1 AND workspace_id = $2
+RETURNING *;
+
+-- name: GetMessage :one
+SELECT * FROM messages WHERE id = $1 AND workspace_id = $2;
+
+-- name: ListMessagesDesc :many
+-- One page of history, newest first.
+--
+-- The cursor names the last message of the previous page, and the row comparison
+-- matches the index order exactly, so the boundary is stable while new messages
+-- arrive. A zero cursor starts from the newest.
+SELECT * FROM messages
+WHERE workspace_id = $1
+  AND conversation_id = $2
+  AND (
+      sqlc.narg('before_created_at')::timestamptz IS NULL
+      OR (created_at, id) < (sqlc.narg('before_created_at')::timestamptz, sqlc.narg('before_id')::uuid)
+  )
+ORDER BY created_at DESC, id DESC
+LIMIT $3;
+
+-- name: ListMessagesAsc :many
+-- The newest messages, oldest first, which is what a chat opens with.
+SELECT * FROM (
+    SELECT * FROM messages
+    WHERE workspace_id = $1 AND conversation_id = $2
+    ORDER BY created_at DESC, id DESC
+    LIMIT $3
+) recent
+ORDER BY recent.created_at, recent.id;
+
+-- name: ListMessagesForTask :many
+SELECT * FROM messages
+WHERE workspace_id = $1 AND task_id = $2
+ORDER BY created_at;
+
+-- ------------------------------------------------------------- attachments
+
+-- name: CreateAttachment :one
+INSERT INTO message_attachments (
+    workspace_id, message_id, storage_key, filename, content_type, byte_size, checksum_sha256
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING *;
+
+-- name: GetAttachment :one
+SELECT * FROM message_attachments WHERE id = $1 AND workspace_id = $2;
+
+-- name: ListAttachmentsForMessage :many
+SELECT * FROM message_attachments
+WHERE workspace_id = $1 AND message_id = $2
+ORDER BY created_at;
+
+-- ------------------------------------------------------------ activity feed
+
+-- name: AppendEvent :one
+INSERT INTO activity_events (
+    workspace_id, type, actor_agent_id, actor_user_id,
+    conversation_id, task_id, draft_id, payload
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING *;
+
+-- name: EventsSince :many
+-- The replay a reconnecting client asks for: everything after the last ID it
+-- saw, oldest first, so the gap is filled in order.
+SELECT * FROM activity_events
+WHERE workspace_id = $1 AND id > $2
+ORDER BY id
+LIMIT $3;
+
+-- name: LatestEvents :many
+SELECT * FROM activity_events
+WHERE workspace_id = $1
+ORDER BY id DESC
+LIMIT $2;

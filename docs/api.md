@@ -161,6 +161,88 @@ What the gateway guarantees:
   Redis; when Redis is unavailable the check sums the ledger, so an outage cannot
   hand out a second allowance.
 
+## Conversations (EPIC 5)
+
+A message body is a list of typed blocks, not a string. Six types exist —
+`text`, `table`, `draft`, `chart`, `mermaid`, `html` — and each is validated
+against a JSON Schema before it is stored, so a renderer never receives a shape
+the backend did not check.
+
+| Endpoint | Auth | Role | Notes |
+| --- | --- | --- | --- |
+| `GET /conversations` | bearer + tenant | any | Threads, most recently active first |
+| `POST /conversations/direct` | bearer + tenant | any | `{agent_id}`; returns the 1:1 thread, creating it once |
+| `POST /conversations/groups` | bearer + tenant | owner, admin | `{title, agent_ids, user_ids?}` |
+| `GET /conversations/:id` | bearer + tenant | any | One thread with its participants |
+| `POST /conversations/:id/participants` | bearer + tenant | owner, admin | `{agent_ids?, user_ids?}`; groups only |
+| `GET /conversations/:id/messages` | bearer + tenant | any | `?cursor=&limit=`; newest first, cursor pagination |
+| `POST /conversations/:id/messages` | bearer + tenant | any | `{text, reply?, agent_id?, attachment_ids?}` |
+| `POST /conversations/:id/attachments` | bearer + tenant | any | multipart `file`, optional `message_id` |
+| `GET /attachments/:id` | bearer + tenant | any | The bytes, served inline with `nosniff` |
+| `GET /events` | bearer + tenant | any | `?after_id=&limit=`; the replay a reconnect makes |
+| `GET /events/stream` | bearer + tenant (query token) | any | Server-Sent Events; `Last-Event-ID` resumes |
+| `GET /events/socket` | bearer + tenant (query token) | any | WebSocket; the primary transport |
+| `GET /content/:reference` | none | — | One sandboxed document, from the content origin |
+
+### The block contract
+
+| Type | Required | Notes |
+| --- | --- | --- |
+| `text` | `markdown` | Rendered without raw HTML |
+| `table` | `columns`, `rows` | A row must match the column count |
+| `draft` | `draft_id` | A UUID; the card shows the status and links to the dashboard |
+| `chart` | `spec.kind` | `bar`/`line`/`area` need `categories` and `series`; `pie` needs `slices`; `scatter` needs `points`. A series must be as long as its categories |
+| `mermaid` | `code` | Validated in the frontend with `mermaid.parse()`; a failure drives the repair loop |
+| `html` | `content_ref`, `byte_size` | The reference names a content object; the size is capped at 500 KB |
+
+An id that is absent is an **empty string** on the wire, never
+`00000000-0000-0000-0000-000000000000`: `encoding/json` cannot omit a
+`uuid.UUID`, so the API renders ids as strings and a client reads an empty one as
+"no author".
+
+Limits: 64 blocks per message, 40 table columns, 2000 rows, 12 chart series, 2000
+points, 256 KB of text, 64 KB of Mermaid, 500 KB of HTML, 25 MB per attachment,
+8000 characters per typed message, 12 participants per group.
+
+### The stream
+
+An event is written to `activity_events` **before** it is published to the Redis
+channel `ws:{workspace_id}`, so the row is the record and the channel is the fast
+path. Types: `message.new`, `message.updated`, `task.started`, `task.step`,
+`task.finished`, `draft.created`, `draft.decided`, `agent.state`,
+`router.decision`, `routine.run`, `notification.pending`.
+
+A reconnecting client names the last event it saw and receives exactly what it
+missed, in order: over HTTP with `?after_id=`, or on the stream with the
+`Last-Event-ID` header (which a browser's EventSource sends by itself) or
+`?last_event_id=`. An event id that appears twice is dropped by the client's
+cursor, so a reconnect cannot duplicate a message.
+
+`agent.state` carries `{agent_id, state, reason?, task_id?, draft_id?}` where
+`state` is `working`, `thinking`, `waiting`, `idle`, or `resting`. **No
+coordinate is stored anywhere**: the office view computes a position from the
+state.
+
+### The content origin
+
+`GET /content/:reference` serves one agent-written HTML document. The reference
+is the storage key, base64url encoded, so it is opaque and resolves in one
+storage read with no database lookup and no session. The response carries:
+
+- `Content-Security-Policy: default-src 'none'; script-src 'unsafe-inline' …;
+  connect-src 'none'; form-action 'none'; frame-ancestors <app origin>;
+  base-uri 'none'`
+
+`frame-ancestors` names the application's own origin (`CONTENT_FRAME_ANCESTORS`,
+defaulting to `FRONTEND_URL`). It cannot be `'self'`: the content origin is a
+different host by design, so a self-only policy would refuse the frame.
+- `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`
+
+The client frames it with `sandbox="allow-scripts"` and no `allow-same-origin`,
+so the document has an opaque origin and cannot read the application's cookies,
+storage, or DOM. `connect-src 'none'` is what stops a script inside it from
+reaching the network at all.
+
 ## Error codes
 
 | Code | Status | Meaning |
@@ -203,3 +285,13 @@ What the gateway guarantees:
 | `provider_unavailable` | 502 | The provider is down or unreachable |
 | `usage_not_recorded` | 500 | The call succeeded but its cost could not be written |
 | `llm_not_configured` | 503 | Module not wired (no database) |
+| `conversation_not_found` | 404 | No such conversation in this workspace |
+| `message_not_found` | 404 | No such message in this workspace |
+| `attachment_not_found` | 404 | No such attachment in this workspace |
+| `agent_not_in_conversation` | 400 | That Bolu is not a participant here |
+| `no_responder` | 409 | No Bolu in the group can answer (all resting, or none configured) |
+| `invalid_block` | 400 | A block does not satisfy its schema |
+| `block_too_large` | 413 | A block exceeds its size limit |
+| `file_too_large` | 413 | An attachment exceeds 25 MB |
+| `storage_not_configured` | 503 | Object storage is not configured |
+| `chat_not_configured` | 503 | Module not wired (no database) |

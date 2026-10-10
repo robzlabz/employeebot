@@ -598,3 +598,303 @@ export function setAgentModel(
     workspace: workspaceId,
   });
 }
+
+// ------------------------------------------------------------------ conversations
+
+/** One content block of a message. The document is what the backend validated. */
+export type TextBlock = { type: "text"; markdown: string; title?: string };
+
+export type TableBlock = {
+  type: "table";
+  title?: string;
+  columns: string[];
+  rows: string[][];
+  align?: ("left" | "right" | "center")[];
+};
+
+export type DraftBlock = {
+  type: "draft";
+  draft_id: string;
+  action_kind?: string;
+  title?: string;
+  summary?: string;
+  status?: "pending" | "approved" | "revise" | "sent" | "canceled";
+  fields?: [string, string][];
+};
+
+export type ChartSpec = {
+  kind: "bar" | "line" | "area" | "pie" | "scatter";
+  title?: string;
+  x_label?: string;
+  y_label?: string;
+  unit?: string;
+  categories?: string[];
+  series?: { name: string; data: number[] }[];
+  slices?: { name: string; value: number }[];
+  points?: { x: number | string; y: number }[];
+  stacked?: boolean;
+};
+
+export type ChartBlock = { type: "chart"; title?: string; spec: ChartSpec };
+
+export type MermaidBlock = {
+  type: "mermaid";
+  title?: string;
+  code: string;
+  diagram?: string;
+};
+
+export type HTMLBlock = {
+  type: "html";
+  title?: string;
+  caption?: string;
+  /** The storage key the content origin resolves. */
+  content_ref: string;
+  byte_size: number;
+};
+
+export type MessageBlock =
+  | TextBlock
+  | TableBlock
+  | DraftBlock
+  | ChartBlock
+  | MermaidBlock
+  | HTMLBlock;
+
+/** A reply that failed or was cut short keeps what arrived, marked. */
+export type MessageStatus = "complete" | "streaming" | "partial" | "failed";
+
+export type Attachment = {
+  id: string;
+  filename: string;
+  content_type: string;
+  byte_size: number;
+  url: string;
+};
+
+export type ChatMessage = {
+  id: string;
+  conversation_id: string;
+  agent_id?: string;
+  user_id?: string;
+  blocks: MessageBlock[];
+  attachments: Attachment[];
+  task_id?: string;
+  status: MessageStatus;
+  finish_reason?: string;
+  created_at: string;
+};
+
+export type ChatParticipant = {
+  id: string;
+  agent_id?: string;
+  user_id?: string;
+  name: string;
+  role: string;
+  is_agent: boolean;
+};
+
+export type ChatConversation = {
+  id: string;
+  kind: "direct" | "group";
+  title: string;
+  participants: ChatParticipant[];
+  message_count: number;
+  last_activity_at: string;
+  created_at: string;
+};
+
+export type MessagePage = {
+  messages: ChatMessage[];
+  next_cursor?: string;
+  has_more: boolean;
+};
+
+export type SendMessageResult = {
+  message: ChatMessage;
+  reply_message_id?: string;
+  responder?: ChatParticipant;
+  routed: boolean;
+};
+
+/** One row of the activity stream. `id` is what a reconnect resumes from. */
+export type ActivityEvent = {
+  id: number;
+  type: string;
+  workspace_id: string;
+  agent_id?: string;
+  user_id?: string;
+  conversation_id?: string;
+  task_id?: string;
+  draft_id?: string;
+  payload?: Record<string, unknown>;
+  created_at: string;
+};
+
+export type MessageEventPayload = {
+  message_id: string;
+  conversation_id: string;
+  agent_id?: string;
+  user_id?: string;
+  status: MessageStatus;
+  blocks: MessageBlock[];
+  finish_reason?: string;
+};
+
+export type AgentStatePayload = {
+  agent_id: string;
+  state: "working" | "waiting" | "idle" | "resting" | "thinking";
+  reason?: string;
+  task_id?: string;
+  draft_id?: string;
+};
+
+/** listConversations returns the threads of the workspace, most recent first. */
+export function listConversations(workspaceId: string): Promise<ApiResult<ChatConversation[]>> {
+  return request<ChatConversation[]>("/conversations", { workspace: workspaceId });
+}
+
+/** openDirectConversation returns the 1:1 thread with a Bolu, creating it once. */
+export function openDirectConversation(
+  workspaceId: string,
+  agentId: string,
+): Promise<ApiResult<ChatConversation>> {
+  return request<ChatConversation>("/conversations/direct", {
+    method: "POST",
+    body: { agent_id: agentId },
+    workspace: workspaceId,
+  });
+}
+
+/** createGroup makes a group with the named Bolu and members. */
+export function createGroup(
+  workspaceId: string,
+  input: { title: string; agent_ids: string[]; user_ids?: string[] },
+): Promise<ApiResult<ChatConversation>> {
+  return request<ChatConversation>("/conversations/groups", {
+    method: "POST",
+    body: input,
+    workspace: workspaceId,
+  });
+}
+
+/** addGroupParticipants adds Bolu and members to a group. */
+export function addGroupParticipants(
+  workspaceId: string,
+  conversationId: string,
+  input: { agent_ids?: string[]; user_ids?: string[] },
+): Promise<ApiResult<ChatConversation>> {
+  return request<ChatConversation>(`/conversations/${conversationId}/participants`, {
+    method: "POST",
+    body: input,
+    workspace: workspaceId,
+  });
+}
+
+/** getConversation returns one thread with its participants. */
+export function getConversation(
+  workspaceId: string,
+  conversationId: string,
+): Promise<ApiResult<ChatConversation>> {
+  return request<ChatConversation>(`/conversations/${conversationId}`, { workspace: workspaceId });
+}
+
+/** listMessages reads one page of history, newest first. */
+export function listMessages(
+  workspaceId: string,
+  conversationId: string,
+  cursor?: string,
+  limit = 40,
+): Promise<ApiResult<MessagePage>> {
+  const query = new URLSearchParams({ limit: String(limit) });
+  if (cursor) {
+    query.set("cursor", cursor);
+  }
+  return request<MessagePage>(`/conversations/${conversationId}/messages?${query}`, {
+    workspace: workspaceId,
+  });
+}
+
+/**
+ * sendMessage stores a message and starts the reply.
+ *
+ * The answer arrives on the event stream rather than in this response, so
+ * closing the tab does not lose it.
+ */
+export function sendMessage(
+  workspaceId: string,
+  conversationId: string,
+  input: { text: string; reply?: boolean; agent_id?: string; attachment_ids?: string[] },
+): Promise<ApiResult<SendMessageResult>> {
+  return request<SendMessageResult>(`/conversations/${conversationId}/messages`, {
+    method: "POST",
+    body: input,
+    workspace: workspaceId,
+  });
+}
+
+/** listEvents replays the stream after an event id, which is how a reconnect fills the gap. */
+export function listEvents(
+  workspaceId: string,
+  afterId: number,
+  limit = 200,
+): Promise<ApiResult<ActivityEvent[]>> {
+  return request<ActivityEvent[]>(`/events?after_id=${afterId}&limit=${limit}`, {
+    workspace: workspaceId,
+  });
+}
+
+/** uploadAttachment stores a file and returns its metadata. */
+export async function uploadAttachment(
+  workspaceId: string,
+  conversationId: string,
+  file: File,
+  messageId?: string,
+): Promise<ApiResult<Attachment>> {
+  const form = new FormData();
+  form.append("file", file);
+  if (messageId) {
+    form.append("message_id", messageId);
+  }
+
+  const headers: Record<string, string> = { "X-Workspace-Id": workspaceId };
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/api/conversations/${conversationId}/attachments`, {
+      method: "POST",
+      headers,
+      credentials: "include",
+      body: form,
+    });
+  } catch {
+    return { ok: false, status: 0, message: "Tidak bisa menghubungi server." };
+  }
+
+  const text = await response.text();
+  let envelope: Envelope<Attachment> | null = null;
+  try {
+    envelope = text ? (JSON.parse(text) as Envelope<Attachment>) : null;
+  } catch {
+    envelope = null;
+  }
+
+  if (!response.ok || !envelope?.success || !envelope.data) {
+    return {
+      ok: false,
+      status: response.status,
+      message: envelope?.message ?? "Gagal mengunggah berkas.",
+      code: envelope?.error?.code,
+    };
+  }
+  return { ok: true, status: response.status, data: envelope.data };
+}
+
+/** contentURL is where one sandboxed HTML document is served from. */
+export function contentURL(reference: string): string {
+  const origin = process.env.NEXT_PUBLIC_CONTENT_ORIGIN ?? API_URL;
+  return `${origin}/content/${reference}`;
+}

@@ -199,10 +199,21 @@ func New(ctx context.Context, cfg *config.Config, opts ...Option) (*Container, e
 		return nil, err
 	}
 
+	// Conversations come last of the modules: they answer with the gateway and
+	// address the Bolu the registry owns, so both must be assembled first.
+	if err := c.openChat(ctx, cfg); err != nil {
+		c.Close()
+		return nil, err
+	}
+
 	c.Handlers = newHandlers(c.Services, c.Logger, cfg)
 
 	if o.buildApp {
 		c.app = c.newApp(cfg)
+		// The stream routes go on first: their middleware authenticates from the
+		// query string, and the tenant middleware that follows accepts the
+		// identity it resolved.
+		c.registerStreamRoutes()
 		c.registerRoutes()
 	}
 

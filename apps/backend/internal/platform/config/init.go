@@ -101,6 +101,14 @@ func loadFromEnv(cfg *Config) error {
 		"LLM_DEFAULT_BASE_URL":            &cfg.Llm.Default.BaseURL,
 		"LLM_DEFAULT_MODEL":               &cfg.Llm.Default.Model,
 		"LLM_DEFAULT_API_KEY":             &cfg.Llm.Default.APIKey,
+		"STORAGE_DRIVER":                  &cfg.Storage.Driver,
+		"STORAGE_LOCAL_ROOT":              &cfg.Storage.LocalRoot,
+		"S3_ENDPOINT":                     &cfg.Storage.Endpoint,
+		"S3_REGION":                       &cfg.Storage.Region,
+		"S3_BUCKET":                       &cfg.Storage.Bucket,
+		"S3_ACCESS_KEY":                   &cfg.Storage.AccessKey,
+		"S3_SECRET_KEY":                   &cfg.Storage.SecretKey,
+		"CONTENT_ORIGIN":                  &cfg.Storage.ContentOrigin,
 	}
 	for key, target := range overrides {
 		if v := os.Getenv(key); v != "" {
@@ -138,6 +146,32 @@ func loadFromEnv(cfg *Config) error {
 			return fmt.Errorf("parse LLM_DEFAULT_MAX_TOKENS: %w", err)
 		}
 		cfg.Llm.Default.MaxTokens = tokens
+	}
+
+	if v := os.Getenv("CONTENT_FRAME_ANCESTORS"); v != "" {
+		ancestors := make([]string, 0, 2)
+		for _, origin := range strings.Split(v, ",") {
+			if trimmed := strings.TrimSpace(origin); trimmed != "" {
+				ancestors = append(ancestors, trimmed)
+			}
+		}
+		cfg.Storage.ContentFrameAncestors = ancestors
+	}
+
+	if v := os.Getenv("S3_USE_SSL"); v != "" {
+		useSSL, err := strconv.ParseBool(v)
+		if err != nil {
+			return fmt.Errorf("parse S3_USE_SSL: %w", err)
+		}
+		cfg.Storage.UseSSL = useSSL
+	}
+
+	if v := os.Getenv("S3_PATH_STYLE"); v != "" {
+		pathStyle, err := strconv.ParseBool(v)
+		if err != nil {
+			return fmt.Errorf("parse S3_PATH_STYLE: %w", err)
+		}
+		cfg.Storage.PathStyle = pathStyle
 	}
 
 	if v := os.Getenv("LLM_DEFAULT_CONTEXT_TOKENS"); v != "" {

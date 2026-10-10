@@ -20,6 +20,16 @@ x-backend-env: &backend-env
   FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
   LOG_LEVEL: ${LOG_LEVEL:-debug}
   LOG_FORMAT: ${LOG_FORMAT:-console}
+  # Object storage: attachments and the sandboxed HTML documents a message
+  # renders. Local development writes to a directory inside the container.
+  STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+  STORAGE_LOCAL_ROOT: /data/storage
+  # The origin the sandboxed documents are served from. Locally the API serves
+  # them itself; production points this at a separate host.
+  CONTENT_ORIGIN: ${CONTENT_ORIGIN:-http://localhost:8080}
+  # The origin allowed to frame a content document. It must name the app, because
+  # the document is served from a different host by design.
+  CONTENT_FRAME_ANCESTORS: ${CONTENT_FRAME_ANCESTORS:-http://localhost:3000}
 
 services:
   postgres:
@@ -120,6 +130,10 @@ services:
     environment:
       <<: *backend-env
       HTTP_ADDRESS: ":8080"
+    volumes:
+      # Attachments and sandboxed content documents. The workers mount the same
+      # volume, so a file the API stores is one a worker can read.
+      - storage_data:/data/storage
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     depends_on:
@@ -141,6 +155,10 @@ services:
     container_name: bolu-agent-worker
     restart: unless-stopped
     environment: *backend-env
+    volumes:
+      # The same directory the API writes to: a worker reads an attachment the
+      # API stored, so the two must see one filesystem.
+      - storage_data:/data/storage
     depends_on:
       postgres:
         condition: service_healthy
@@ -160,6 +178,10 @@ services:
     container_name: bolu-integration-worker
     restart: unless-stopped
     environment: *backend-env
+    volumes:
+      # One directory shared by the API and both workers, so a file stored by one
+      # process is readable by the others.
+      - storage_data:/data/storage
     depends_on:
       postgres:
         condition: service_healthy
@@ -178,6 +200,10 @@ services:
         # NEXT_PUBLIC_* values are inlined into the client bundle at build time,
         # so the API URL has to be a build argument, not a runtime variable.
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+        # Where sandboxed HTML documents are framed from. In production this is a
+        # different origin from the app, which is what makes the sandbox
+        # meaningful; locally the API serves them.
+        NEXT_PUBLIC_CONTENT_ORIGIN: ${CONTENT_ORIGIN:-http://localhost:8080}
     container_name: bolu-frontend
     restart: unless-stopped
     ports:
@@ -188,3 +214,6 @@ services:
 
 volumes:
   postgres_data:
+  # Attachment and content bytes. A named volume rather than a bind mount, so the
+  # same compose file works on a machine that has no checkout of the repository.
+  storage_data:

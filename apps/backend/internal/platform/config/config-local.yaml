@@ -83,6 +83,25 @@ Llm:
   TokensPerPeriod: 0
   ChainLimit: 3
 
+Storage:
+  # The local driver writes to a directory, so development needs no container and
+  # the stored files are inspectable. Deployments use "s3".
+  Driver: "local"
+  LocalRoot: ".storage"
+  Endpoint: ""
+  Region: ""
+  Bucket: ""
+  AccessKey: ""
+  SecretKey: ""
+  UseSSL: false
+  PathStyle: true
+  # In development the content origin is the API itself, because the iframe is
+  # sandboxed without allow-same-origin either way. Production points this at a
+  # separate host.
+  ContentOrigin: "http://localhost:8080"
+  ContentFrameAncestors:
+    - "http://localhost:3000"
+
 Logging:
   Level: "debug"
   Format: "console"

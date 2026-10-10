@@ -5,6 +5,7 @@ import (
 
 	agentrepo "github.com/robzlabz/employeebot/apps/backend/internal/modules/agent/repository"
 	authrepo "github.com/robzlabz/employeebot/apps/backend/internal/modules/auth/repository"
+	chatrepo "github.com/robzlabz/employeebot/apps/backend/internal/modules/chat/repository"
 	healthrepo "github.com/robzlabz/employeebot/apps/backend/internal/modules/health/repository"
 	llmrepo "github.com/robzlabz/employeebot/apps/backend/internal/modules/llm/repository"
 	workspacerepo "github.com/robzlabz/employeebot/apps/backend/internal/modules/workspace/repository"
@@ -23,6 +24,8 @@ type Repositories struct {
 	// and is filled in by openLLM.
 	LLM       *llmrepo.Repository
 	LLMAgents *llmrepo.AgentStore
+	// Chat holds conversations, messages, attachments, and the activity stream.
+	Chat *chatrepo.Repository
 }
 
 // newRepositories builds every repository. When there is no pool the
@@ -52,6 +55,11 @@ func newRepositories(pool *database.Pool) *Repositories {
 		// The model gateway works without a database too: it answers "not
 		// configured" rather than failing, exactly like the other modules.
 		repositories.LLM = llmrepo.New(pool)
+
+		// The chat repository implements four ports: conversations, messages,
+		// attachments, and the event store. They share one connection and one
+		// tenant scope, so they are one struct.
+		repositories.Chat = chatrepo.New(pool)
 	}
 	return repositories
 }

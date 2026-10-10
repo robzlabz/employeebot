@@ -48,3 +48,15 @@ packages:
       Provider:
       SecretBox:
       Resolver:
+  github.com/robzlabz/employeebot/apps/backend/internal/modules/chat/domain:
+    interfaces:
+      Service:
+      ConversationRepository:
+      MessageRepository:
+      AttachmentRepository:
+      EventStore:
+      EventPublisher:
+      AgentDirectory:
+      Router:
+      Responder:
+      ObjectStore:
