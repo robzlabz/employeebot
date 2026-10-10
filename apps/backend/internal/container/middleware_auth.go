@@ -24,10 +24,18 @@ const HeaderWorkspaceID = "X-Workspace-Id"
 
 // requireUser authenticates the request from the bearer access token and stores
 // the identity on the request context.
+//
+// An identity that is already resolved is left alone rather than resolved again.
+// That is what lets the live stream authenticate from the query string first
+// (a browser cannot set a header on a WebSocket) and this middleware then accept
+// the identity it set, instead of rejecting the request for having no header.
 func (c *Container) requireUser() fiber.Handler {
 	return func(ctx *fiber.Ctx) error {
 		if c.Services.Auth == nil {
 			return response.Unavailable(ctx, "authentication is not configured", "auth_not_configured")
+		}
+		if middleware.CurrentUserID(ctx) != uuid.Nil {
+			return ctx.Next()
 		}
 
 		token := bearerToken(ctx)
@@ -51,10 +59,21 @@ func (c *Container) requireUser() fiber.Handler {
 
 // requireTenant resolves the active workspace, verifies the caller's membership,
 // and stores the tenant scope the handlers query with.
+//
+// Like requireUser, a scope that is already resolved is left alone: the stream
+// middleware resolves it from the query string, and re-resolving it here would
+// reject the request.
+//
+// The check is on the stored scope, never on the workspace header: the header is
+// a request value, so treating it as proof of an already-verified tenant would
+// skip the membership check entirely.
 func (c *Container) requireTenant() fiber.Handler {
 	return func(ctx *fiber.Ctx) error {
 		if c.Services.Workspace == nil {
 			return response.Unavailable(ctx, "workspaces are not configured", "workspace_not_configured")
+		}
+		if !middleware.Scope(ctx).IsZero() {
+			return ctx.Next()
 		}
 
 		workspaceID, err := requestedWorkspaceID(ctx)
@@ -74,6 +93,58 @@ func (c *Container) requireTenant() fiber.Handler {
 
 		middleware.SetScope(ctx, database.Scope{UserID: userID, WorkspaceID: workspaceID})
 		middleware.SetRole(ctx, role)
+		return ctx.Next()
+	}
+}
+
+// requireStreamAuth authenticates the live-stream endpoints.
+//
+// It is requireUser and requireTenant with one difference: the token and the
+// workspace may come from the query string. A browser's WebSocket and
+// EventSource clients cannot set a header, so without this the live stream would
+// be unreachable from a page — and the alternative, an unauthenticated stream,
+// would leak another tenant's events.
+func (c *Container) requireStreamAuth() fiber.Handler {
+	return func(ctx *fiber.Ctx) error {
+		if c.Services.Auth == nil || c.Services.Workspace == nil {
+			return response.Unavailable(ctx, "the live stream is not configured", "chat_not_configured")
+		}
+
+		token := bearerToken(ctx)
+		if token == "" {
+			token = strings.TrimSpace(ctx.Query("token"))
+		}
+		if token == "" {
+			return response.Error(ctx, fiber.StatusUnauthorized, "access token is required", "unauthenticated", nil)
+		}
+
+		user, err := c.Services.Auth.Authenticate(ctx.UserContext(), token)
+		if err != nil {
+			if errors.Is(err, authdomain.ErrInvalidToken) {
+				return response.Error(ctx, fiber.StatusUnauthorized, "access token is invalid or expired", "unauthenticated", nil)
+			}
+			c.Logger.Error("authenticate stream failed", zap.Error(err))
+			return response.Error(ctx, fiber.StatusInternalServerError, "internal server error", "internal_error", nil)
+		}
+		middleware.SetIdentity(ctx, user.ID, user.Email)
+
+		workspaceID, err := requestedWorkspaceID(ctx)
+		if err != nil {
+			return response.Error(ctx, fiber.StatusBadRequest, err.Error(), "invalid_workspace", nil)
+		}
+
+		role, err := c.Services.Workspace.Resolve(ctx.UserContext(), workspaceID, user.ID)
+		if err != nil {
+			if errors.Is(err, workspacedomain.ErrNotMember) {
+				return response.Error(ctx, fiber.StatusForbidden, "you are not a member of this workspace", "not_a_member", nil)
+			}
+			c.Logger.Error("resolve membership for stream failed", zap.Error(err))
+			return response.Error(ctx, fiber.StatusInternalServerError, "internal server error", "internal_error", nil)
+		}
+
+		middleware.SetScope(ctx, database.Scope{UserID: user.ID, WorkspaceID: workspaceID})
+		middleware.SetRole(ctx, role)
+
 		return ctx.Next()
 	}
 }

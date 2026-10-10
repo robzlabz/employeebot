@@ -1,11 +1,14 @@
 package container
 
 import (
+	"strings"
+
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/zap"
 
 	agenthandler "github.com/robzlabz/employeebot/apps/backend/internal/modules/agent/handler"
 	authhandler "github.com/robzlabz/employeebot/apps/backend/internal/modules/auth/handler"
+	chathandler "github.com/robzlabz/employeebot/apps/backend/internal/modules/chat/handler"
 	healthhandler "github.com/robzlabz/employeebot/apps/backend/internal/modules/health/handler"
 	llmhandler "github.com/robzlabz/employeebot/apps/backend/internal/modules/llm/handler"
 	"github.com/robzlabz/employeebot/apps/backend/internal/modules/workspace/domain"
@@ -23,6 +26,7 @@ type Handlers struct {
 	Workspace *workspacehandler.Handler
 	Agent     *agenthandler.Handler
 	LLM       *llmhandler.Handler
+	Chat      *chathandler.Handler
 }
 
 // newHandlers builds every handler from the service set. Handlers receive the
@@ -51,6 +55,11 @@ func newHandlers(services *Services, log *zap.Logger, cfg *config.Config) *Handl
 	}
 	if services.LLM != nil {
 		handlers.LLM = llmhandler.New(services.LLM, log)
+	}
+	if services.Chat != nil {
+		handlers.Chat = chathandler.New(services.Chat, log).WithContent(chathandler.ContentConfig{
+			FrameAncestors: contentFrameAncestors(cfg),
+		})
 	}
 
 	return handlers
@@ -113,20 +122,66 @@ func (c *Container) registerRoutes() {
 		agenthandler.Routes(tenant, c.Handlers.Agent)
 	}
 
+	// Conversations: everyone in the workspace reads and writes them, because
+	// talking to a Bolu is the product's main surface.
+	if c.Handlers.Chat == nil {
+		registerChatFallback(tenant)
+	} else {
+		chathandler.Routes(tenant, c.Handlers.Chat)
+	}
+
 	// Model configuration is read by every member, because the Bolu screens show
 	// which model a Bolu uses, and written by a managing role, because it holds
 	// the provider keys.
 	if c.Handlers.LLM == nil {
 		registerModelFallback(tenant)
-		return
+	} else {
+		llmhandler.Routes(tenant, c.Handlers.LLM)
 	}
-	llmhandler.Routes(tenant, c.Handlers.LLM)
 
+	// Changing the registry, a group, or a provider needs a managing role.
 	registry := api.Group("", c.requireUser(), c.requireTenant(), requireRole(domain.RoleOwner, domain.RoleAdmin))
 	if c.Handlers.Agent != nil {
 		agenthandler.ManagerRoutes(registry, c.Handlers.Agent)
 	}
-	llmhandler.ManagerRoutes(registry, c.Handlers.LLM)
+	if c.Handlers.Chat != nil {
+		chathandler.ManagerRoutes(registry, c.Handlers.Chat)
+	}
+	if c.Handlers.LLM != nil {
+		llmhandler.ManagerRoutes(registry, c.Handlers.LLM)
+	}
+}
+
+// registerStreamRoutes mounts the live stream and the sandboxed content origin.
+//
+// The stream carries its own authentication because a browser cannot set a
+// header on a WebSocket or an EventSource: the token and the workspace travel in
+// the query string instead. Two details make that work:
+//
+//   - the middleware is registered on the two stream paths only, so a public
+//     route is never asked for a token;
+//   - it is registered *before* the tenant group, so the identity is resolved
+//     from the query before requireUser looks for a header, and requireUser then
+//     accepts the identity it finds.
+//
+// The content route is mounted on the app rather than under the API prefix and
+// is deliberately unauthenticated: an iframe without allow-same-origin sends no
+// cookie, so the reference in the URL is the only capability, and it names one
+// document.
+func (c *Container) registerStreamRoutes() {
+	if c.Handlers.Chat == nil {
+		return
+	}
+
+	api := c.Config.Http.ApiPrefix
+	for _, path := range []string{api + "/events/stream", api + "/events/socket"} {
+		c.app.Use(path, c.requireStreamAuth())
+	}
+
+	stream := c.app.Group(api)
+	chathandler.StreamRoutes(stream, c.Handlers.Chat)
+
+	chathandler.ContentRoutes(c.app, c.Handlers.Chat)
 }
 
 // registerUnavailableModules registers the fallbacks for the modules that are
@@ -143,6 +198,9 @@ func (c *Container) registerUnavailableModules(api fiber.Router) {
 	if c.Handlers.LLM == nil {
 		registerModelFallback(api)
 	}
+	if c.Handlers.Chat == nil {
+		registerChatFallback(api)
+	}
 }
 
 // registerAgentFallback answers 503 for the registry routes.
@@ -150,6 +208,32 @@ func registerAgentFallback(router fiber.Router) {
 	message := "the agent registry is not configured"
 	router.All("/agents*", unavailable(message, "agent_not_configured"))
 	router.All("/teams*", unavailable(message, "agent_not_configured"))
+}
+
+// contentFrameAncestors is the list of origins allowed to frame a sandboxed
+// content document.
+//
+// It is the application's own origin, and it has to be named rather than left as
+// `'self'`: the document is served from a different host than the app by design,
+// so a self-only policy would refuse every frame and break the block entirely.
+func contentFrameAncestors(cfg *config.Config) []string {
+	if len(cfg.Storage.ContentFrameAncestors) > 0 {
+		return cfg.Storage.ContentFrameAncestors
+	}
+	if frontend := strings.TrimSpace(cfg.Application.FrontendURL); frontend != "" {
+		return []string{frontend}
+	}
+	// Without a configured frontend the safest useful default is the API itself,
+	// which is where a local deployment serves the app from.
+	return []string{"'self'"}
+}
+
+// registerChatFallback answers 503 for the conversation routes.
+func registerChatFallback(router fiber.Router) {
+	message := "conversations are not configured"
+	router.All("/conversations*", unavailable(message, "chat_not_configured"))
+	router.All("/attachments*", unavailable(message, "chat_not_configured"))
+	router.All("/events*", unavailable(message, "chat_not_configured"))
 }
 
 // registerModelFallback answers 503 for the model configuration routes.

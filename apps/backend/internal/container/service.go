@@ -3,6 +3,7 @@ package container
 import (
 	agentdomain "github.com/robzlabz/employeebot/apps/backend/internal/modules/agent/domain"
 	authdomain "github.com/robzlabz/employeebot/apps/backend/internal/modules/auth/domain"
+	chatdomain "github.com/robzlabz/employeebot/apps/backend/internal/modules/chat/domain"
 	healthdomain "github.com/robzlabz/employeebot/apps/backend/internal/modules/health/domain"
 	healthservice "github.com/robzlabz/employeebot/apps/backend/internal/modules/health/service"
 	llmdomain "github.com/robzlabz/employeebot/apps/backend/internal/modules/llm/domain"
@@ -22,6 +23,8 @@ type Services struct {
 	Agent     agentdomain.Service
 	// LLM is built by openLLM, which needs the encryption key from the config.
 	LLM llmdomain.Gateway
+	// Chat is built by openChat, which needs the object storage and the gateway.
+	Chat chatdomain.Service
 }
 
 // newServices builds every service. Optional dependencies (Redis today) are

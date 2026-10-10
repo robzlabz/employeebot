@@ -245,6 +245,21 @@ type Message struct {
 	Attachments    []byte
 	TaskID         *uuid.UUID
 	CreatedAt      time.Time
+	Status         string
+	FinishReason   string
+	UpdatedAt      time.Time
+}
+
+type MessageAttachment struct {
+	ID             uuid.UUID
+	WorkspaceID    uuid.UUID
+	MessageID      uuid.UUID
+	StorageKey     string
+	Filename       string
+	ContentType    string
+	ByteSize       int64
+	ChecksumSha256 string
+	CreatedAt      time.Time
 }
 
 type PasswordResetToken struct {

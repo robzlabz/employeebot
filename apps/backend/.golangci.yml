@@ -20,6 +20,13 @@ linters:
     - tparallel
     - thelper
 
+  settings:
+    misspell:
+      # The seeded Bolu roles are Indonesian, so a fixture that mirrors what a
+      # workspace stores uses the same words.
+      ignore-rules:
+        - operasional
+
 formatters:
   enable:
     - gofmt

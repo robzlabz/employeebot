@@ -28,7 +28,11 @@ ARG BINARY=api
 WORKDIR /app
 
 RUN apk add --no-cache ca-certificates tzdata && \
-    addgroup -S bolu && adduser -S -G bolu bolu
+    addgroup -S bolu && adduser -S -G bolu bolu && \
+    # The local storage driver writes here. The directory is created and owned by
+    # the runtime user, so a mounted volume inherits the ownership instead of
+    # arriving root-owned and unwritable.
+    install -d -o bolu -g bolu /data/storage
 
 COPY --from=builder /out/app ./app
 # The non-local YAML defaults ship with the image; every secret and endpoint is

@@ -51,6 +51,7 @@ make migrate-up      # apply migrations to $DATABASE_URL
 | `workspace` | `/api/workspaces/*`, `/api/invitations/accept` | Onboarding, members, roles, invitations |
 | `agent` | `/api/agents/*`, `/api/teams` | The Bolu registry: profiles, derived status, tools, grants |
 | `llm` | `/api/llm/*`, `/api/agents/:id/model` | The model gateway: provider configuration, fallback chain, per-Bolu override, usage report |
+| `chat` | `/api/conversations/*`, `/api/events*`, `/content/:ref` | Conversations with block messages, attachments, the activity stream, and the sandboxed content origin |
 
 ### Authentication
 
@@ -121,6 +122,52 @@ read back inside the transaction that creates it.
 - Streaming falls back **only before the first byte**: once a fragment reached
   the caller, restarting on another provider would duplicate the answer.
 
+### Conversations
+
+- **A message is a list of typed blocks** (`text`, `table`, `draft`, `chart`,
+  `mermaid`, `html`), not a string. Each type has a JSON Schema in the domain
+  package, applied *before* a message is stored, so a renderer is never handed a
+  shape the backend did not check. The stored value is the block document itself,
+  so what is written is exactly what a client receives.
+- **The three block tools are `render_chart`, `render_mermaid`, and
+  `render_html`.** An agent calls one rather than writing a block as free text,
+  which is what makes validation possible. A block that fails validation is sent
+  back to the model with the validator's own message — naming the offending field
+  — and the repair loop is bounded (`DefaultRepairBudget`), so a block that never
+  validates costs a fixed number of rounds and no more.
+- **A reply is stored before it is finished.** A placeholder is written when the
+  answer starts and updated as it grows, so the user sees text appear
+  continuously, a client that joins late renders the same body, and a stream that
+  dies leaves the tokens it produced behind, marked `partial` rather than lost.
+  An answer that produced nothing is `failed`.
+- **Pagination is by cursor, never offset.** A chat is append-heavy, so an offset
+  shifts under the reader and page two would repeat or skip a message. The cursor
+  names the last message of the previous page (timestamp in nanoseconds, plus id)
+  and the index reads newest-first, so a page boundary is stable while messages
+  arrive.
+- **The activity stream is durable, and Redis is only the fast path.** Every
+  event is a row in `activity_events` written *before* it is published, so a
+  subscriber that reconnects replays the rows it missed from `last_event_id` and
+  a dropped publish costs latency rather than an event.
+- **A group message produces at most one reply.** A small model call picks the
+  Bolu from its role and the message; the decision is recorded as a
+  `router.decision` event and its cost lands in `usage_ledger` under the
+  `routing` purpose, so "who answered and why" is answerable after the fact. When
+  the model is unavailable a deterministic score picks instead and says so.
+- **Sandboxed HTML is isolated, not sanitised.** The document is stored in object
+  storage and served from the content origin under a policy with
+  `connect-src 'none'`; the iframe is `sandbox="allow-scripts"` with no
+  `allow-same-origin`, `allow-forms`, or `allow-popups`. The only message accepted
+  from the frame is a clamped `resize`. The document's size is capped at 500 KB.
+- **The content origin names its framing application.** `CONTENT_FRAME_ANCESTORS`
+  is the app's own origin and must be set: the document is served from a different
+  host by design, so a `frame-ancestors 'self'` policy would refuse every frame
+  and the block would never appear.
+- **Absence is an empty string on the wire, never a zero id.** `encoding/json`
+  cannot omit a `uuid.UUID` — it is an array — so the wire types carry ids as
+  strings; a typed field would publish
+  `00000000-0000-0000-0000-000000000000` and a client would read it as an author.
+
 ## Configuration
 
 Configuration is read from `internal/platform/config/config.yaml` (or
@@ -142,11 +189,19 @@ prints the links, `smtp` sends them), and the model gateway's
 `SECRET_ENCRYPTION_KEY` (32 bytes, base64/hex/raw, seals the provider keys at
 rest), `LLM_DEFAULT_*` (the provider the platform offers a workspace that
 configured none), `LLM_QUOTA_ENABLED`/`LLM_TOKENS_PER_PERIOD`, and
-`LLM_CHAIN_LIMIT`.
+`LLM_CHAIN_LIMIT`. Object storage is `STORAGE_DRIVER` (`local` writes to a
+directory, `s3` speaks the S3 API that MinIO, R2, B2, and AWS share) plus
+`STORAGE_LOCAL_ROOT` or `S3_*`, and `CONTENT_ORIGIN` is where sandboxed documents
+are served from — a different origin from the app in every deployment.
 
 Deployment and region decisions: `docs/adr/0001-temporal-dan-region.md`.
 Test strategy and gates: `docs/testing.md`.
 API contract: `docs/api.md`.
 
 The web app routes are English: `/signup`, `/login`, `/verify`,
-`/forgot-password`, `/join`, `/onboarding`, `/settings/team`, `/settings/model`.
+`/forgot-password`, `/join`, `/onboarding`, `/settings/team`, `/settings/model`,
+`/chat`, `/groups`, `/office`.
+
+The chat page is one thread at a time with a thread list, the group page manages
+groups and shows who is in them, and the office draws each Bolu at a place
+computed from its `agent.state` — the backend stores no coordinate.
