@@ -121,7 +121,20 @@ func TestCheck(t *testing.T) {
 			packages: []Package{
 				pkg("internal/platform/database", internal("internal/modules/agent/repository")),
 			},
-			wantRule: "platform-has-no-business-logic",
+			wantRule: "platform-imports-module",
+		},
+		{
+			name: "platform may implement a domain port",
+			packages: []Package{
+				pkg("internal/platform/llm/openai", internal("internal/modules/llm/domain"), "net/http"),
+			},
+		},
+		{
+			name: "platform may not import a module service",
+			packages: []Package{
+				pkg("internal/platform/llm/openai", internal("internal/modules/llm/service")),
+			},
+			wantRule: "platform-imports-module",
 		},
 		{
 			name: "modules never import the container",
