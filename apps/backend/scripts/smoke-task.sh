@@ -30,9 +30,20 @@ log() { printf '\n==> %s\n' "$*"; }
 fail() { printf '\n!! %s\n' "$*" >&2; exit 1; }
 
 cleanup() {
-    [[ -n "${WORKER_PID:-}" ]] && kill "$WORKER_PID" 2>/dev/null || true
-    [[ -n "${API_PID:-}" ]] && kill "$API_PID" 2>/dev/null || true
-    [[ -n "${STUB_PID:-}" ]] && kill "$STUB_PID" 2>/dev/null || true
+    # Each child is reaped rather than only signalled: a process the shell still
+    # knows about is reported as "Terminated" when the script exits, which reads
+    # as a failure on an otherwise clean run.
+    stop_child() {
+        local pid="${1:-}"
+        [[ -n "$pid" ]] || return 0
+        kill "$pid" 2>/dev/null || true
+        wait "$pid" 2>/dev/null || true
+    }
+
+    stop_child "${WORKER_PID:-}"
+    stop_child "${API_PID:-}"
+    stop_child "${STUB_PID:-}"
+
     [[ -n "${BIN_DIR:-}" ]] && rm -rf "$BIN_DIR"
     rm -f /tmp/smoke-llm-stub.py
 }
@@ -167,7 +178,9 @@ start_stub() {
 }
 
 stop_stub() {
-    [[ -n "${STUB_PID:-}" ]] && kill "$STUB_PID" 2>/dev/null || true
+    [[ -n "${STUB_PID:-}" ]] || return 0
+    kill "$STUB_PID" 2>/dev/null || true
+    wait "$STUB_PID" 2>/dev/null || true
     STUB_PID=""
 }
 
@@ -214,8 +227,13 @@ start_stack() {
 }
 
 stop_stack() {
-    [[ -n "${WORKER_PID:-}" ]] && kill "$WORKER_PID" 2>/dev/null || true
-    [[ -n "${API_PID:-}" ]] && kill "$API_PID" 2>/dev/null || true
+    # Reaped, not only signalled: a child the shell still knows about is
+    # reported as "Terminated" when the script exits.
+    for pid in "${WORKER_PID:-}" "${API_PID:-}"; do
+        [[ -n "$pid" ]] || continue
+        kill "$pid" 2>/dev/null || true
+        wait "$pid" 2>/dev/null || true
+    done
     WORKER_PID=""
     API_PID=""
     # The worker's poll loop takes a moment to release the queue; without the
